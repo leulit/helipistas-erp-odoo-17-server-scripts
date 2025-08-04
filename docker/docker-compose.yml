@@ -77,19 +77,6 @@ services:
       timeout: 10s
       retries: 3
 
-  watchtower:
-    image: containrrr/watchtower
-    container_name: odoo_watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_SCHEDULE: "0 0 2 * * SUN"  # Weekly on Sunday at 2 AM
-      WATCHTOWER_NOTIFICATIONS: none
-    networks:
-      - odoo_network
-
 networks:
   odoo_network:
     driver: bridge
@@ -102,3 +89,26 @@ volumes:
     driver: local
   odoo_data:
     driver: local
+
+# NOTA SOBRE EFS (Elastic File System):
+# Si configuraste EFS en terraform.tfvars, los directorios importantes ya están
+# montados automáticamente en /opt/odoo/data (o tu efs_mount_point personalizado).
+# 
+# Para aprovechar EFS para persistencia adicional, puedes modificar los volúmenes:
+# 
+# postgresql_data:
+#   driver: local
+#   driver_opts:
+#     type: none
+#     o: bind
+#     device: /opt/odoo/data/postgresql
+# 
+# odoo_data:
+#   driver: local  
+#   driver_opts:
+#     type: none
+#     o: bind
+#     device: /opt/odoo/data/odoo
+#
+# Esto haría que los datos de PostgreSQL y Odoo se almacenen en EFS,
+# sobreviviendo a la recreación de instancias.

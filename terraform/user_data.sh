@@ -10,6 +10,8 @@ ODOO_MASTER_PASSWORD="${odoo_master_password}"
 POSTGRES_PASSWORD="${postgres_password}"
 DOMAIN_NAME="${domain_name}"
 LETSENCRYPT_EMAIL="${letsencrypt_email}"
+EFS_ID="${efs_id}"
+EFS_MOUNT_POINT="${efs_mount_point}"
 
 # Logging
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
@@ -34,7 +36,7 @@ ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Install git and other utilities
 echo "Installing additional packages..."
-yum install -y git htop nano wget curl
+yum install -y git htop nano wget curl amazon-efs-utils
 
 # Create directory structure
 echo "Creating directory structure..."
@@ -42,6 +44,27 @@ mkdir -p /opt/odoo/{addons,config,data}
 mkdir -p /opt/odoo/postgresql/data
 mkdir -p /opt/odoo/nginx/{conf,ssl,logs}
 mkdir -p /opt/odoo/backup
+
+# Mount EFS if provided
+if [ ! -z "$EFS_ID" ]; then
+    echo "Mounting EFS file system: $EFS_ID at $EFS_MOUNT_POINT"
+    
+    # Create mount point
+    mkdir -p "$EFS_MOUNT_POINT"
+    
+    # Mount EFS using EFS utils
+    echo "$EFS_ID.efs.$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).amazonaws.com:/ $EFS_MOUNT_POINT efs defaults,_netdev,tls" >> /etc/fstab
+    
+    # Mount now
+    mount -a
+    
+    # Set permissions
+    chown -R ec2-user:ec2-user "$EFS_MOUNT_POINT"
+    
+    echo "EFS mounted successfully at $EFS_MOUNT_POINT"
+else
+    echo "No EFS ID provided, skipping EFS mount"
+fi
 
 # Set permissions
 chown -R ec2-user:ec2-user /opt/odoo

@@ -131,20 +131,63 @@ download_backup() {
     fi
 }
 
-# Actualizar contenedores
+# Actualizar contenedores manualmente
 update_containers() {
     INSTANCE_IP=$(get_instance_ip)
-    log "Actualizando contenedores..."
+    
+    warning "ACTUALIZACIÓN MANUAL DE CONTENEDORES"
+    info "Este proceso hará lo siguiente:"
+    info "1. Creará un backup automático antes de actualizar"
+    info "2. Descargará las últimas imágenes de contenedores"
+    info "3. Recreará los contenedores con las nuevas imágenes"
+    info "4. Limpiará imágenes no utilizadas"
+    info ""
+    warning "IMPORTANTE: Esto puede causar downtime temporal del servicio"
+    
+    read -p "¿Estás seguro de que quieres continuar? (escriba 'SI' para confirmar): " confirm
+    if [ "$confirm" != "SI" ]; then
+        error "Actualización cancelada por el usuario"
+        return 1
+    fi
+    
+    log "Creando backup de seguridad antes de actualizar..."
+    create_backup
+    
+    log "Iniciando actualización de contenedores..."
     
     ssh -i ~/.ssh/id_rsa ec2-user@$INSTANCE_IP << 'EOF'
 cd /opt/odoo
+
+echo "=== Estado antes de la actualización ==="
+sudo docker-compose ps
+echo ""
+
+echo "=== Descargando nuevas imágenes ==="
 sudo docker-compose pull
-sudo docker-compose up -d
+echo ""
+
+echo "=== Recreando contenedores ==="
+sudo docker-compose up -d --force-recreate
+echo ""
+
+echo "=== Esperando que los servicios estén listos ==="
+sleep 30
+
+echo "=== Estado después de la actualización ==="
+sudo docker-compose ps
+echo ""
+
+echo "=== Limpiando imágenes no utilizadas ==="
 sudo docker system prune -f
-echo "Contenedores actualizados"
+echo ""
+
+echo "=== Verificando logs por errores ==="
+sudo docker-compose logs --tail=50 | grep -i error || echo "No se encontraron errores en los logs recientes"
 EOF
     
-    log "Actualización completada"
+    log "Actualización completada - Verifica que todos los servicios estén funcionando correctamente"
+    info "Usa '$0 status' para verificar el estado de los servicios"
+    info "Usa '$0 logs' para revisar los logs si hay problemas"
 }
 
 # Monitoreo de recursos
@@ -239,6 +282,41 @@ show_info() {
     cat deployment-info.txt
 }
 
+# Escanear recursos de AWS
+scan_aws_resources() {
+    log "Escaneando recursos de AWS..."
+    if [ -f "./cleanup.sh" ]; then
+        ./cleanup.sh --dry-run
+    else
+        error "Script de limpieza no encontrado"
+    fi
+}
+
+# Limpiar recursos de AWS
+cleanup_aws_resources() {
+    warn "Esta operación eliminará TODOS los recursos de AWS del proyecto"
+    if [ -f "./cleanup.sh" ]; then
+        ./cleanup.sh "$@"
+    else
+        error "Script de limpieza no encontrado"
+    fi
+}
+
+# Verificar costos actuales
+check_costs() {
+    log "Verificando costos estimados..."
+    if [ -f "./cleanup.sh" ]; then
+        ./cleanup.sh --dry-run | grep -A 10 "Costos estimados"
+    else
+        # Estimación básica sin el script
+        INSTANCE_IP=$(get_instance_ip)
+        if [ -n "$INSTANCE_IP" ]; then
+            info "Instancia activa en: $INSTANCE_IP"
+            info "Costo estimado: ~\$0.04-0.08/hora (~\$30-60/mes)"
+        fi
+    fi
+}
+
 # Mostrar ayuda
 show_help() {
     echo "Script de gestión de Odoo en AWS"
@@ -252,11 +330,14 @@ show_help() {
     echo "  restart [servicio]     Reiniciar servicios"
     echo "  backup                 Crear backup de la base de datos"
     echo "  download-backup <archivo>  Descargar backup específico"
-    echo "  update                 Actualizar contenedores Docker"
+    echo "  update                 Actualizar contenedores (requiere confirmación y crea backup)"
     echo "  monitor                Monitorear recursos en tiempo real"
     echo "  setup-ssl <dominio> <email>  Configurar SSL con Let's Encrypt"
     echo "  remote '<comando>'     Ejecutar comando remoto"
     echo "  info                   Mostrar información de conexión"
+    echo "  scan                   Escanear recursos de AWS (sin eliminar)"
+    echo "  cleanup [--force]      Limpiar TODOS los recursos de AWS"
+    echo "  costs                  Ver costos estimados actuales"
     echo "  -h, --help             Mostrar esta ayuda"
     echo ""
     echo "Ejemplos:"
@@ -265,6 +346,8 @@ show_help() {
     echo "  $0 restart nginx"
     echo "  $0 setup-ssl midominio.com admin@midominio.com"
     echo "  $0 remote 'sudo docker ps'"
+    echo "  $0 scan                # Ver recursos sin eliminar"
+    echo "  $0 cleanup --force     # PELIGROSO: Eliminar todo"
 }
 
 # Main script
@@ -303,6 +386,16 @@ main() {
             ;;
         info)
             show_info
+            ;;
+        scan)
+            scan_aws_resources
+            ;;
+        cleanup)
+            shift
+            cleanup_aws_resources "$@"
+            ;;
+        costs)
+            check_costs
             ;;
         -h|--help)
             show_help

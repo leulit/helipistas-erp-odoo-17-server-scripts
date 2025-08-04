@@ -68,9 +68,6 @@ setup_config() {
         log "Creando terraform.tfvars..."
         cp terraform.tfvars.example terraform.tfvars
         
-        # Obtener IP pública actual
-        PUBLIC_IP=$(curl -s ifconfig.me)
-        
         # Generar contraseñas seguras
         POSTGRES_PASS=$(openssl rand -base64 32)
         ODOO_PASS=$(openssl rand -base64 32)
@@ -78,9 +75,9 @@ setup_config() {
         # Obtener clave SSH pública
         SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
         
-        # Actualizar terraform.tfvars
+        # Actualizar terraform.tfvars (acceso abierto desde cualquier IP)
         sed -i.bak "s/public_key = .*/public_key = \"$SSH_KEY\"/" terraform.tfvars
-        sed -i.bak "s/allowed_ssh_cidr = .*/allowed_ssh_cidr = \"$PUBLIC_IP\/32\"/" terraform.tfvars
+        sed -i.bak "s/allowed_ssh_cidr = .*/allowed_ssh_cidr = \"0.0.0.0\/0\"/" terraform.tfvars
         sed -i.bak "s/odoo_master_password = .*/odoo_master_password = \"$ODOO_PASS\"/" terraform.tfvars
         sed -i.bak "s/postgres_password = .*/postgres_password = \"$POSTGRES_PASS\"/" terraform.tfvars
         
@@ -202,22 +199,62 @@ show_help() {
     echo "  -p, --plan     Solo crear plan de Terraform"
     echo "  -d, --deploy   Desplegar infraestructura completa"
     echo "  -v, --verify   Verificar despliegue existente"
-    echo "  --destroy      Destruir infraestructura"
+    echo "  --destroy      Destruir infraestructura (PELIGROSO)"
+    echo "  --cleanup      Limpieza manual de recursos AWS"
+    echo "  --scan         Escanear recursos AWS sin eliminar"
     echo ""
     echo "Sin argumentos ejecuta el despliegue completo"
+    echo ""
+    echo "⚠️  IMPORTANTE para pruebas:"
+    echo "  --scan         Ver qué recursos están creados"
+    echo "  --cleanup      Eliminar TODOS los recursos (manual)"
+    echo "  --destroy      Eliminar con Terraform (recomendado)"
 }
 
 # Destruir infraestructura
 destroy_infrastructure() {
     warn "¡ADVERTENCIA! Esto destruirá toda la infraestructura en AWS"
-    read -p "¿Estás seguro? (escribe 'yes' para confirmar): " confirm
     
-    if [ "$confirm" = "yes" ]; then
+    # Mostrar recursos antes de eliminar
+    log "Escaneando recursos actuales..."
+    if [ -f "./cleanup.sh" ]; then
+        ./cleanup.sh --dry-run
+    fi
+    
+    echo ""
+    read -p "¿Estás seguro? (escribe 'DELETE' para confirmar): " confirm
+    
+    if [ "$confirm" = "DELETE" ]; then
         log "Destruyendo infraestructura..."
-        cd terraform
-        terraform destroy -auto-approve
-        cd ..
-        log "Infraestructura destruida"
+        
+        # Intentar con Terraform primero
+        if [ -f "terraform/terraform.tfstate" ]; then
+            log "Usando Terraform para destruir recursos..."
+            cd terraform
+            terraform destroy -auto-approve
+            cd ..
+            
+            # Verificar que todo se eliminó
+            log "Verificando limpieza..."
+            sleep 10
+            if [ -f "./cleanup.sh" ]; then
+                ./cleanup.sh --dry-run
+            fi
+        else
+            warn "No se encontró estado de Terraform"
+            if [ -f "./cleanup.sh" ]; then
+                log "Usando script de limpieza manual..."
+                ./cleanup.sh --force
+            fi
+        fi
+        
+        # Limpiar archivos locales
+        log "Limpiando archivos locales..."
+        rm -f deployment-info.txt
+        rm -f terraform/terraform.tfstate*
+        rm -f terraform/tfplan
+        
+        log "✅ Infraestructura destruida completamente"
     else
         info "Operación cancelada"
     fi
@@ -250,6 +287,20 @@ main() {
             ;;
         --destroy)
             destroy_infrastructure
+            ;;
+        --cleanup)
+            if [ -f "./cleanup.sh" ]; then
+                ./cleanup.sh "$@"
+            else
+                error "Script de limpieza no encontrado"
+            fi
+            ;;
+        --scan)
+            if [ -f "./cleanup.sh" ]; then
+                ./cleanup.sh --dry-run
+            else
+                error "Script de limpieza no encontrado"
+            fi
             ;;
         "")
             log "Iniciando despliegue completo de Odoo en AWS..."

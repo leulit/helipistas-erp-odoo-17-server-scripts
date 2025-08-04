@@ -19,8 +19,8 @@ root_volume_size  = 30           # Tamaño del disco en GB
 # Luego copia el contenido de ~/.ssh/helipistas-odoo-key.pub aquí
 public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... tu_clave_publica_aqui"
 
-# Seguridad
-allowed_ssh_cidr = "0.0.0.0/0"  # Cambiar por tu IP pública para mayor seguridad
+# Seguridad - Acceso abierto desde cualquier IP
+allowed_ssh_cidr = "0.0.0.0/0"  # Acceso SSH y servicios desde cualquier IP
 
 # Contraseñas (REQUERIDO - Cambiar por contraseñas seguras)
 odoo_master_password = "tu_contraseña_master_odoo_muy_segura"
@@ -29,3 +29,20 @@ postgres_password    = "tu_contraseña_postgres_muy_segura"
 # Dominio y certificados SSL (Opcional)
 domain_name       = ""  # ej: "odoo.tudominio.com"
 letsencrypt_email = ""  # ej: "admin@tudominio.com"
+
+# Recursos existentes de AWS (Opcional)
+# Si ya tienes recursos de AWS que quieres reutilizar, especifica sus IDs aquí
+
+# Elastic IP existente (Opcional)
+# Si ya tienes una Elastic IP que quieres usar, especifica su ID
+# Déjalo vacío para crear una nueva Elastic IP automáticamente
+existing_elastic_ip_id = ""  # ej: "eip-1234567890abcdef0"
+
+# EFS existente (Opcional)
+# Si ya tienes un sistema de archivos EFS que quieres usar para persistencia
+# Déjalo vacío si no necesitas EFS o quieres usar solo el almacenamiento local
+existing_efs_id = ""  # ej: "fs-1234567890abcdef0"
+
+# Punto de montaje para EFS
+# Donde se montará el EFS en la instancia EC2 (solo se usa si existing_efs_id está configurado)
+efs_mount_point = "/opt/odoo/data"  # Directorio donde se montará EFS

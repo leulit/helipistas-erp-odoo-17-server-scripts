@@ -54,7 +54,7 @@ variable "public_key" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed for SSH access"
+  description = "CIDR block allowed for SSH and services access (0.0.0.0/0 = acceso desde cualquier IP)"
   type        = string
   default     = "0.0.0.0/0"
 }
@@ -81,4 +81,22 @@ variable "letsencrypt_email" {
   description = "Email for Let's Encrypt certificates"
   type        = string
   default     = ""
+}
+
+variable "existing_elastic_ip_id" {
+  description = "ID of existing Elastic IP to associate with the instance (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "existing_efs_id" {
+  description = "ID of existing EFS file system to mount (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "efs_mount_point" {
+  description = "Mount point for EFS in the EC2 instance"
+  type        = string
+  default     = "/opt/odoo/data"
 }

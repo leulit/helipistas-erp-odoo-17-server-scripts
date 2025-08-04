@@ -100,13 +100,13 @@ resource "aws_security_group" "ec2" {
   description = "Security group for Odoo EC2 instance"
   vpc_id      = aws_vpc.main.id
   
-  # SSH access
+  # SSH access (abierto desde cualquier IP)
   ingress {
     description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.allowed_ssh_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
   
   # HTTP access
@@ -127,13 +127,13 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   
-  # Odoo port (backup access)
+  # Odoo port (acceso directo abierto)
   ingress {
     description = "Odoo"
     from_port   = 8069
     to_port     = 8069
     protocol    = "tcp"
-    cidr_blocks = [var.allowed_ssh_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
   
   # All outbound traffic
@@ -182,6 +182,8 @@ resource "aws_spot_instance_request" "main" {
     postgres_password    = var.postgres_password
     domain_name         = var.domain_name
     letsencrypt_email   = var.letsencrypt_email
+    efs_id              = var.existing_efs_id
+    efs_mount_point     = var.efs_mount_point
   }))
   
   # EBS configuration
@@ -205,8 +207,9 @@ resource "aws_spot_instance_request" "main" {
   }
 }
 
-# Elastic IP
+# Elastic IP (crear solo si no se proporciona uno existente)
 resource "aws_eip" "main" {
+  count  = var.existing_elastic_ip_id == "" ? 1 : 0
   domain = "vpc"
   
   tags = {
@@ -216,10 +219,58 @@ resource "aws_eip" "main" {
   }
 }
 
+# Data source para Elastic IP existente
+data "aws_eip" "existing" {
+  count = var.existing_elastic_ip_id != "" ? 1 : 0
+  id    = var.existing_elastic_ip_id
+}
+
 # Associate Elastic IP with the instance
 resource "aws_eip_association" "main" {
   instance_id   = aws_spot_instance_request.main.spot_instance_id
-  allocation_id = aws_eip.main.id
+  allocation_id = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].id : aws_eip.main[0].id
   
   depends_on = [aws_spot_instance_request.main]
+}
+
+# EFS Configuration (opcional - usar EFS existente si se proporciona)
+data "aws_efs_file_system" "existing" {
+  count           = var.existing_efs_id != "" ? 1 : 0
+  file_system_id  = var.existing_efs_id
+}
+
+# EFS Mount Target para el subnet público (solo si se usa EFS existente)
+resource "aws_efs_mount_target" "main" {
+  count           = var.existing_efs_id != "" ? 1 : 0
+  file_system_id  = data.aws_efs_file_system.existing[0].id
+  subnet_id       = aws_subnet.public.id
+  security_groups = [aws_security_group.efs[0].id]
+}
+
+# Security Group para EFS (solo si se usa EFS)
+resource "aws_security_group" "efs" {
+  count       = var.existing_efs_id != "" ? 1 : 0
+  name        = "${var.project_name}-efs-sg"
+  description = "Security group for EFS"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.project_name}-efs-sg"
+    Environment = var.environment
+    Project     = var.project_name
+  }
 }

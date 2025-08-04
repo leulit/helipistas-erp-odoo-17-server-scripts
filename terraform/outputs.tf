@@ -22,22 +22,37 @@ output "instance_id" {
 
 output "instance_public_ip" {
   description = "Public IP address of the EC2 instance"
-  value       = aws_eip.main.public_ip
+  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip
 }
 
 output "instance_public_dns" {
   description = "Public DNS name of the EC2 instance"
-  value       = aws_eip.main.public_dns
+  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_dns : aws_eip.main[0].public_dns
+}
+
+output "elastic_ip_id" {
+  description = "ID of the Elastic IP being used"
+  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].id : aws_eip.main[0].id
 }
 
 output "ssh_command" {
   description = "SSH command to connect to the instance"
-  value       = "ssh -i ~/.ssh/${var.project_name}-key ec2-user@${aws_eip.main.public_ip}"
+  value       = "ssh -i ~/.ssh/${var.project_name}-key ec2-user@${var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip}"
 }
 
 output "odoo_url" {
   description = "URL to access Odoo"
-  value       = var.domain_name != "" ? "https://${var.domain_name}" : "http://${aws_eip.main.public_ip}"
+  value       = var.domain_name != "" ? "https://${var.domain_name}" : "http://${var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip}"
+}
+
+output "efs_id" {
+  description = "ID of the EFS file system being used (if any)"
+  value       = var.existing_efs_id != "" ? var.existing_efs_id : "No EFS configured"
+}
+
+output "efs_mount_point" {
+  description = "Mount point for EFS on the EC2 instance"
+  value       = var.existing_efs_id != "" ? var.efs_mount_point : "No EFS configured"
 }
 
 output "spot_instance_request_id" {
