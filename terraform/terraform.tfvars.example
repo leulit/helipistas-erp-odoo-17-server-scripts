@@ -1,0 +1,31 @@
+# Ejemplo de configuración de variables
+# Copia este archivo a terraform.tfvars y modifica los valores según tus necesidades
+
+aws_region    = "us-east-1"
+project_name  = "helipistas-odoo"
+environment   = "production"
+
+# Configuración de red
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.1.0/24"
+
+# Configuración de instancia
+instance_type      = "t3.medium"  # Cambiar según necesidades (t3.small, t3.large, etc.)
+spot_price        = "0.05"       # Precio máximo por hora en USD
+root_volume_size  = 30           # Tamaño del disco en GB
+
+# Clave SSH (REQUERIDO)
+# Genera tu clave SSH con: ssh-keygen -t rsa -b 4096 -f ~/.ssh/helipistas-odoo-key
+# Luego copia el contenido de ~/.ssh/helipistas-odoo-key.pub aquí
+public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... tu_clave_publica_aqui"
+
+# Seguridad
+allowed_ssh_cidr = "0.0.0.0/0"  # Cambiar por tu IP pública para mayor seguridad
+
+# Contraseñas (REQUERIDO - Cambiar por contraseñas seguras)
+odoo_master_password = "tu_contraseña_master_odoo_muy_segura"
+postgres_password    = "tu_contraseña_postgres_muy_segura"
+
+# Dominio y certificados SSL (Opcional)
+domain_name       = ""  # ej: "odoo.tudominio.com"
+letsencrypt_email = ""  # ej: "admin@tudominio.com"

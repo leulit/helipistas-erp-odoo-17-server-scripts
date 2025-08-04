@@ -1,0 +1,48 @@
+# Archivos que no deben ser versionados
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Configuración sensible
+.env
+deployment-info.txt
+*.pem
+*.key
+
+# SSH keys
+id_rsa*
+*.ppk
+
+# Logs
+*.log
+logs/
+
+# Backups locales
+backup/
+*.sql.gz
+*.tar.gz
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporal
+tmp/
+temp/
+.tmp/

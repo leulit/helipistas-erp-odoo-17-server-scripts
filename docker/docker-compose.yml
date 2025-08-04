@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres:15
+    container_name: odoo_postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: odoo
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data/pgdata
+      - ./backup:/backup
+      - ./postgresql/init:/docker-entrypoint-initdb.d
+    networks:
+      - odoo_network
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    command: postgres -c 'max_connections=200' -c 'shared_buffers=256MB' -c 'effective_cache_size=1GB'
+
+  odoo:
+    image: odoo:17
+    container_name: odoo_app
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      HOST: postgresql
+      USER: odoo
+      PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - ./config:/etc/odoo
+      - odoo_data:/var/lib/odoo
+      - ./logs:/var/log/odoo
+    ports:
+      - "127.0.0.1:8069:8069"
+      - "127.0.0.1:8072:8072"
+    networks:
+      - odoo_network
+    command: odoo --config=/etc/odoo/odoo.conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8069/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: odoo_nginx
+    restart: unless-stopped
+    depends_on:
+      odoo:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/cache:/var/cache/nginx
+    networks:
+      - odoo_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: odoo_watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_SCHEDULE: "0 0 2 * * SUN"  # Weekly on Sunday at 2 AM
+      WATCHTOWER_NOTIFICATIONS: none
+    networks:
+      - odoo_network
+
+networks:
+  odoo_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgresql_data:
+    driver: local
+  odoo_data:
+    driver: local
