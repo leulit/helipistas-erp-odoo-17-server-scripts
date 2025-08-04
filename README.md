@@ -10,7 +10,7 @@ SERVER-SCRIPTS/
 │   ├── variables.tf          # Variables configurables
 │   ├── outputs.tf            # Outputs del despliegue
 │   ├── user_data.sh          # Script de auto-configuración EC2
-│   └── terraform.tfvars.example # Plantilla de configuración
+│   └── terraform.tfvars.plantilla # Plantilla de configuración
 ├── docker/                    # 🐳 Configuración de contenedores
 │   ├── docker-compose.yml    # Servicios: Odoo, PostgreSQL, Nginx
 │   ├── .env.example          # Variables de entorno
@@ -91,15 +91,38 @@ Si quieres datos persistentes que sobrevivan a la recreación de instancias:
 ```bash
 # En terraform.tfvars
 existing_efs_id = "fs-1234567890abcdef0"
-efs_mount_point = "/opt/odoo/data"
+efs_mount_point = "/CUSTOM/efs"
 ```
 
-**Qué se monta en EFS:**
-- 📁 Addons personalizados de Odoo
-- 📁 Archivos de configuración
-- 📁 Logs persistentes
-- 📁 Archivos subidos por usuarios
-- 📁 Backups automáticos
+**Qué se almacena en EFS:**
+El proyecto completo se organiza en `/efs/HLP-ERP-ODOO-17/` con esta estructura:
+
+```
+/efs/HLP-ERP-ODOO-17/
+├── POSTGRESQL/
+│   ├── data/           # Base de datos PostgreSQL
+│   ├── backups/        # Backups automáticos diarios
+│   ├── init/           # Scripts de inicialización
+│   └── logs/           # Logs de PostgreSQL
+├── ODOO/
+│   ├── addons/         # Módulos personalizados
+│   ├── data/           # Datos de aplicación Odoo
+│   ├── config/         # Configuración (odoo.conf)
+│   ├── filestore/      # Archivos subidos por usuarios
+│   └── logs/           # Logs de Odoo
+└── NGINX/
+    ├── conf/           # Configuración de Nginx
+    ├── ssl/            # Certificados SSL/TLS
+    ├── logs/           # Logs de acceso y errores
+    └── cache/          # Cache de contenido
+```
+
+**Ventajas de esta estructura:**
+- �️ **Organización clara** por servicios
+- 📁 **Separación lógica** de datos, logs y configuración
+- 🔄 **Persistencia completa** si usas EFS
+- � **Fácil mantenimiento** y backup selectivo
+- 📊 **Monitoreo granular** por servicio
 
 **Ventajas de EFS:**
 - ✅ Datos sobreviven a terminación de instancia
@@ -123,7 +146,7 @@ aws efs describe-file-systems --file-system-id fs-1234567890abcdef0
 
 🚀 Para Empezar
 Configurar AWS CLI y Terraform
-Copiar y editar terraform.tfvars.example
+Copiar y editar terraform.tfvars.plantilla
 Ejecutar deploy.sh
 ¡Listo! Tu Odoo estará funcionando en minutos
 📚 Documentación

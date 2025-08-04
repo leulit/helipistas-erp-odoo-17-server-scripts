@@ -18,7 +18,7 @@
 
 ```bash
 # Copiar configuración de ejemplo
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+cp terraform/terraform.tfvars.plantilla terraform/terraform.tfvars
 
 # Editar configuración mínima requerida:
 nano terraform/terraform.tfvars

@@ -62,8 +62,93 @@ if [ ! -z "$EFS_ID" ]; then
     chown -R ec2-user:ec2-user "$EFS_MOUNT_POINT"
     
     echo "EFS mounted successfully at $EFS_MOUNT_POINT"
+    
+    # Create project structure in EFS (only if not exists)
+    PROJECT_DIR="/efs/HLP-ERP-ODOO-17"
+    
+    if [ ! -d "$PROJECT_DIR" ]; then
+        echo "Creating new project structure in EFS at $PROJECT_DIR..."
+        
+        # Create main project directory
+        mkdir -p "$PROJECT_DIR"
+        
+        # Create PostgreSQL structure
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/data"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/backups"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/init"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/logs"
+        
+        # Create Odoo structure
+        mkdir -p "$PROJECT_DIR/ODOO/addons"
+        mkdir -p "$PROJECT_DIR/ODOO/data"
+        mkdir -p "$PROJECT_DIR/ODOO/config"
+        mkdir -p "$PROJECT_DIR/ODOO/logs"
+        mkdir -p "$PROJECT_DIR/ODOO/filestore"
+        
+        # Create Nginx structure
+        mkdir -p "$PROJECT_DIR/NGINX/conf"
+        mkdir -p "$PROJECT_DIR/NGINX/ssl"
+        mkdir -p "$PROJECT_DIR/NGINX/logs"
+        mkdir -p "$PROJECT_DIR/NGINX/cache"
+        
+        # Set permissions for all project directories
+        chown -R ec2-user:ec2-user "$PROJECT_DIR"
+        
+        echo "✅ New project structure created successfully in $PROJECT_DIR"
+        
+        # List the created structure
+        echo "Created directory structure:"
+        find "$PROJECT_DIR" -type d | sort
+        
+    else
+        echo "✅ Project structure already exists in $PROJECT_DIR"
+        echo "Existing structure:"
+        find "$PROJECT_DIR" -type d | sort
+        
+        # Ensure permissions are correct on existing structure
+        chown -R ec2-user:ec2-user "$PROJECT_DIR"
+        echo "✅ Permissions updated on existing structure"
+    fi
+    
+    # Create symlink from /opt/odoo to project directory for compatibility
+    ln -sf "$PROJECT_DIR" /opt/odoo/project
+    
 else
     echo "No EFS ID provided, skipping EFS mount"
+    
+    # Create local structure if no EFS
+    PROJECT_DIR="/opt/odoo/HLP-ERP-ODOO-17"
+    
+    if [ ! -d "$PROJECT_DIR" ]; then
+        echo "Creating new local project structure at $PROJECT_DIR..."
+        
+        # Create the same structure locally
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/data"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/backups"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/init"
+        mkdir -p "$PROJECT_DIR/POSTGRESQL/logs"
+        
+        mkdir -p "$PROJECT_DIR/ODOO/addons"
+        mkdir -p "$PROJECT_DIR/ODOO/data"
+        mkdir -p "$PROJECT_DIR/ODOO/config"
+        mkdir -p "$PROJECT_DIR/ODOO/logs"
+        mkdir -p "$PROJECT_DIR/ODOO/filestore"
+        
+        mkdir -p "$PROJECT_DIR/NGINX/conf"
+        mkdir -p "$PROJECT_DIR/NGINX/ssl"
+        mkdir -p "$PROJECT_DIR/NGINX/logs"
+        mkdir -p "$PROJECT_DIR/NGINX/cache"
+        
+        echo "✅ New local project structure created successfully"
+    else
+        echo "✅ Local project structure already exists in $PROJECT_DIR"
+    fi
+    
+    # Create symlink for compatibility
+    ln -sf "$PROJECT_DIR" /opt/odoo/project
+fi
+    # Create symlink for compatibility
+    ln -sf "$PROJECT_DIR" /opt/odoo/project
 fi
 
 # Set permissions
@@ -88,8 +173,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - ./postgresql/data:/var/lib/postgresql/data/pgdata
-      - ./backup:/backup
+      - /efs/HLP-ERP-ODOO-17/POSTGRESQL/data:/var/lib/postgresql/data/pgdata
+      - /efs/HLP-ERP-ODOO-17/POSTGRESQL/backups:/backup
+      - /efs/HLP-ERP-ODOO-17/POSTGRESQL/init:/docker-entrypoint-initdb.d
     networks:
       - odoo_network
     healthcheck:
@@ -110,9 +196,9 @@ services:
       USER: odoo
       PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./addons:/mnt/extra-addons
-      - ./config:/etc/odoo
-      - ./data:/var/lib/odoo
+      - /efs/HLP-ERP-ODOO-17/ODOO/addons:/mnt/extra-addons
+      - /efs/HLP-ERP-ODOO-17/ODOO/config:/etc/odoo
+      - /efs/HLP-ERP-ODOO-17/ODOO/data:/var/lib/odoo
     ports:
       - "127.0.0.1:8069:8069"
     networks:

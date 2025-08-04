@@ -66,7 +66,7 @@ setup_config() {
     # Crear terraform.tfvars si no existe
     if [ ! -f terraform.tfvars ]; then
         log "Creando terraform.tfvars..."
-        cp terraform.tfvars.example terraform.tfvars
+        cp terraform.tfvars.plantilla terraform.tfvars
         
         # Generar contraseñas seguras
         POSTGRES_PASS=$(openssl rand -base64 32)

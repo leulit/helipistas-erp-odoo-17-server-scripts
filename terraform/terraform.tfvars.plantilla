@@ -1,5 +1,6 @@
-# Ejemplo de configuración de variables
-# Copia este archivo a terraform.tfvars y modifica los valores según tus necesidades
+# 🔧 PLANTILLA DE CONFIGURACIÓN TERRAFORM
+# 📋 Copia este archivo a terraform.tfvars y modifica los valores según tus necesidades
+# 📝 cp terraform.tfvars.plantilla terraform.tfvars
 
 aws_region    = "us-east-1"
 project_name  = "helipistas-odoo"
@@ -45,4 +46,5 @@ existing_efs_id = ""  # ej: "fs-1234567890abcdef0"
 
 # Punto de montaje para EFS
 # Donde se montará el EFS en la instancia EC2 (solo se usa si existing_efs_id está configurado)
-efs_mount_point = "/opt/odoo/data"  # Directorio donde se montará EFS
+# El proyecto HLP-ERP-ODOO-17 se creará automáticamente dentro de este punto de montaje
+efs_mount_point = "/efs"  # EFS se monta aquí, el proyecto estará en /efs/HLP-ERP-ODOO-17/

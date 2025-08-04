@@ -98,5 +98,5 @@ variable "existing_efs_id" {
 variable "efs_mount_point" {
   description = "Mount point for EFS in the EC2 instance"
   type        = string
-  default     = "/opt/odoo/data"
+  default     = "/efs"
 }

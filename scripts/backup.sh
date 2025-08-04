@@ -5,11 +5,12 @@
 
 set -e
 
-# Configuración
-BACKUP_DIR="/opt/odoo/backup"
+# Configuración - Usar estructura del proyecto
+BACKUP_DIR="/efs/HLP-ERP-ODOO-17/POSTGRESQL/backups"
+PROJECT_DIR="/efs/HLP-ERP-ODOO-17"
 DATE=$(date +%Y%m%d_%H%M%S)
 RETENTION_DAYS=7
-LOG_FILE="/var/log/odoo-backup.log"
+LOG_FILE="/efs/HLP-ERP-ODOO-17/POSTGRESQL/logs/backup.log"
 
 # Configuración S3 (opcional)
 S3_BUCKET="${S3_BACKUP_BUCKET:-}"
