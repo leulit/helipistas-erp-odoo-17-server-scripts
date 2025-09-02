@@ -107,9 +107,9 @@ services:
     volumes:
       - /efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot
       - /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@helipistas.com --agree-tos --no-eff-email -d $DOMAIN_NAME
-    depends_on:
-      - nginx
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait \$\${!}; done;'"
+    networks:
+      - helipistas_network
 
 networks:
   helipistas_network:
@@ -229,26 +229,65 @@ chmod 644 /efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf
 
 echo "✅ Archivo odoo.conf creado y configurado"
 
-# 6. INICIAR SERVICIOS
+# 6. CONFIGURAR NGINX INICIAL (SIN SSL)
 echo "=========================================="
-echo "=== 6. INICIANDO SERVICIOS ==="
+echo "=== 6. CONFIGURANDO NGINX INICIAL ==="
 echo "=========================================="
-echo "Iniciando stack de Docker Compose..."
-/usr/local/bin/docker-compose up -d
+echo "Creando configuración inicial de Nginx sin SSL..."
 
-echo "Esperando que Nginx esté listo..."
-sleep 30
+cat > nginx/conf/default.conf << EOF
+server {
+    listen 80;
+    server_name $DOMAIN_NAME;
 
-# 7. OBTENER CERTIFICADO LET'S ENCRYPT
+    # Let's Encrypt validation
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect all other traffic to HTTPS (will be enabled after SSL setup)
+    location / {
+        proxy_pass http://helipistas_odoo:8069;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+
+echo "✅ Configuración inicial de Nginx creada"
+
+# 7. INICIAR SERVICIOS (SIN CERTBOT PRIMERO)
 echo "=========================================="
-echo "=== 7. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
+echo "=== 7. INICIANDO SERVICIOS INICIALES ==="
+echo "=========================================="
+echo "Iniciando PostgreSQL, Odoo y Nginx..."
+/usr/local/bin/docker-compose up -d postgresOdoo16 helipistas_odoo nginx
+
+echo "Esperando que los servicios estén listos..."
+sleep 45
+
+# 8. OBTENER CERTIFICADO LET'S ENCRYPT
+echo "=========================================="
+echo "=== 8. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
 echo "=========================================="
 echo "Obteniendo certificado SSL de Let's Encrypt..."
 
 # Ejecutar certbot para obtener certificado
-/usr/local/bin/docker-compose run --rm certbot
+docker run --rm --name certbot-nginx \
+    -v "/efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot" \
+    -v "/efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt" \
+    certbot/certbot \
+    certonly --webroot --webroot-path=/var/www/certbot \
+    --email admin@helipistas.com --agree-tos --no-eff-email \
+    --force-renewal --non-interactive \
+    -d $DOMAIN_NAME
 
-# 8. VERIFICAR Y CONFIGURAR HTTPS
+# 9. VERIFICAR Y CONFIGURAR HTTPS
+echo "=========================================="
+echo "=== 9. CONFIGURANDO HTTPS ==="
+echo "=========================================="
 if [ -f "certbot/conf/live/$DOMAIN_NAME/fullchain.pem" ]; then
     echo "✅ Certificado Let's Encrypt obtenido exitosamente!"
     
@@ -334,11 +373,28 @@ echo "=== 9. CONFIGURANDO RENOVACIÓN AUTOMÁTICA ==="
 echo "=========================================="
 echo "Configurando cron para renovación automática..."
 
+    # Reiniciar Nginx con nueva configuración SSL
+    echo "Reiniciando Nginx con configuración SSL..."
+    /usr/local/bin/docker-compose restart nginx
+    
+    # Iniciar servicio certbot para auto-renovación
+    echo "Iniciando servicio certbot para auto-renovación..."
+    /usr/local/bin/docker-compose up -d certbot
+    
+    echo "✅ Configuración HTTPS completada exitosamente!"
+else
+    echo "❌ Error: No se pudo obtener el certificado SSL"
+    echo "Verificar logs de certbot para más detalles"
+fi
+
 # Crear script de renovación
 cat > renew_ssl.sh << 'EOF'
 #!/bin/bash
 cd /efs/HELIPISTAS-ODOO-17
-/usr/local/bin/docker-compose run --rm certbot renew
+docker run --rm --name certbot-renew \
+    -v "/efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot" \
+    -v "/efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt" \
+    certbot/certbot renew
 /usr/local/bin/docker-compose restart nginx
 EOF
 
