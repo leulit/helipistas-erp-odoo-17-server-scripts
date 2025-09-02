@@ -1,61 +1,31 @@
-# Outputs from Terraform deployment
-
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
-}
-
-output "public_subnet_id" {
-  description = "ID of the public subnet"
-  value       = aws_subnet.public.id
-}
-
-output "security_group_id" {
-  description = "ID of the security group"
-  value       = aws_security_group.ec2.id
-}
+# Outputs para EC2 Instance
 
 output "instance_id" {
   description = "ID of the EC2 instance"
-  value       = aws_spot_instance_request.main.spot_instance_id
+  value       = aws_instance.main.id
 }
 
 output "instance_public_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip
+  description = "Public IP address of the instance"
+  value       = aws_instance.main.public_ip
 }
 
-output "instance_public_dns" {
-  description = "Public DNS name of the EC2 instance"
-  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_dns : aws_eip.main[0].public_dns
-}
-
-output "elastic_ip_id" {
-  description = "ID of the Elastic IP being used"
-  value       = var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].id : aws_eip.main[0].id
-}
-
-output "ssh_command" {
-  description = "SSH command to connect to the instance"
-  value       = "ssh -i ~/.ssh/${var.project_name}-key ec2-user@${var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip}"
+output "elastic_ip" {
+  description = "Elastic IP address"
+  value       = var.existing_elastic_ip_id != "" ? "54.228.16.152" : "No Elastic IP configured"
 }
 
 output "odoo_url" {
   description = "URL to access Odoo"
-  value       = var.domain_name != "" ? "https://${var.domain_name}" : "http://${var.existing_elastic_ip_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.main[0].public_ip}"
+  value       = "http://54.228.16.152:8069"
 }
 
-output "efs_id" {
-  description = "ID of the EFS file system being used (if any)"
-  value       = var.existing_efs_id != "" ? var.existing_efs_id : "No EFS configured"
+output "ssh_command" {
+  description = "SSH command to connect to the instance"
+  value       = "ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152"
 }
 
-output "efs_mount_point" {
-  description = "Mount point for EFS on the EC2 instance"
-  value       = var.existing_efs_id != "" ? var.efs_mount_point : "No EFS configured"
-}
-
-output "spot_instance_request_id" {
-  description = "ID of the spot instance request"
-  value       = aws_spot_instance_request.main.id
+output "setup_complete" {
+  description = "Setup completion message"
+  value       = "Deployment complete! Odoo should be available at http://54.228.16.152:8069 in a few minutes."
 }

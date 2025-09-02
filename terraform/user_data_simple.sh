@@ -21,6 +21,7 @@ POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
 ODOO_MASTER_PASSWORD="${ODOO_MASTER_PASSWORD}"
 EFS_ID="${EFS_ID}"
 ELASTIC_IP_ID="${ELASTIC_IP_ID}"
+DOMAIN_NAME="${DOMAIN_NAME}"
 
 echo "=========================================="
 echo "Variables recibidas:"
@@ -28,6 +29,7 @@ echo "POSTGRES_PASSWORD: [DEFINIDO]"
 echo "ODOO_MASTER_PASSWORD: [DEFINIDO]"
 echo "EFS_ID: $EFS_ID"
 echo "ELASTIC_IP_ID: $ELASTIC_IP_ID"
+echo "DOMAIN_NAME: $DOMAIN_NAME"
 echo "=========================================="
 
 # 1. ACTUALIZAR SISTEMA E INSTALAR DEPENDENCIAS
@@ -151,7 +153,7 @@ chmod +x setup_odoo_complete.sh
 
 # Ejecutar script completo con parámetros
 echo "Ejecutando configuración completa..."
-./setup_odoo_complete.sh "$POSTGRES_PASSWORD" "$ODOO_MASTER_PASSWORD"
+./setup_odoo_complete.sh "$POSTGRES_PASSWORD" "$ODOO_MASTER_PASSWORD" "$DOMAIN_NAME"
 
 echo "=========================================="
 echo "=== SETUP BÁSICO COMPLETADO ==="

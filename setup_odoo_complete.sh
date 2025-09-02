@@ -14,10 +14,11 @@ echo "Directorio: $(pwd)"
 # Parámetros recibidos
 POSTGRES_PASSWORD="$1"
 ODOO_MASTER_PASSWORD="$2"
+DOMAIN_NAME="$3"
 
-if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$ODOO_MASTER_PASSWORD" ]; then
+if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$ODOO_MASTER_PASSWORD" ] || [ -z "$DOMAIN_NAME" ]; then
     echo "ERROR: Faltan parámetros"
-    echo "Uso: $0 <postgres_password> <odoo_master_password>"
+    echo "Uso: $0 <postgres_password> <odoo_master_password> <domain_name>"
     exit 1
 fi
 
@@ -106,7 +107,7 @@ services:
     volumes:
       - /efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot
       - /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@helipistas.com --agree-tos --no-eff-email -d 54.228.16.152
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@helipistas.com --agree-tos --no-eff-email -d $DOMAIN_NAME
     depends_on:
       - nginx
 
@@ -123,11 +124,10 @@ echo "=== 3. CONFIGURANDO NGINX ==="
 echo "=========================================="
 echo "Creando configuración de Nginx con Let's Encrypt..."
 
-# Configuración inicial para HTTP (para validación Let's Encrypt)
-cat > nginx/conf/default.conf << 'EOF'
+cat > nginx/conf/default.conf << EOF
 server {
     listen 80;
-    server_name _;
+    server_name $DOMAIN_NAME;
     
     # Let's Encrypt validation
     location /.well-known/acme-challenge/ {
@@ -137,14 +137,14 @@ server {
     # Proxy to Odoo for now (will redirect to HTTPS after SSL setup)
     location / {
         proxy_pass http://helipistas_odoo:8069;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         
         # WebSocket support for Odoo
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
         # Timeouts
@@ -195,16 +195,16 @@ echo "Obteniendo certificado SSL de Let's Encrypt..."
 /usr/local/bin/docker-compose run --rm certbot
 
 # 7. VERIFICAR Y CONFIGURAR HTTPS
-if [ -f "certbot/conf/live/54.228.16.152/fullchain.pem" ]; then
+if [ -f "certbot/conf/live/$DOMAIN_NAME/fullchain.pem" ]; then
     echo "✅ Certificado Let's Encrypt obtenido exitosamente!"
     
     # Actualizar configuración de Nginx para usar Let's Encrypt
     echo "Actualizando configuración de Nginx para HTTPS..."
-    cat > nginx/conf/default.conf << 'EOF'
+    cat > nginx/conf/default.conf << EOF
 # Redirect HTTP to HTTPS
 server {
     listen 80;
-    server_name _;
+    server_name $DOMAIN_NAME;
     
     # Let's Encrypt validation
     location /.well-known/acme-challenge/ {
@@ -213,18 +213,18 @@ server {
     
     # Redirect all other traffic to HTTPS
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://\$host\$request_uri;
     }
 }
 
 # HTTPS configuration with Let's Encrypt
 server {
     listen 443 ssl http2;
-    server_name _;
+    server_name $DOMAIN_NAME;
 
     # Let's Encrypt SSL certificates
-    ssl_certificate /etc/letsencrypt/live/54.228.16.152/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/54.228.16.152/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
     
     # SSL configuration
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -239,14 +239,14 @@ server {
     # Proxy settings for Odoo
     location / {
         proxy_pass http://helipistas_odoo:8069;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         
         # WebSocket support for Odoo
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
         # Timeouts

@@ -1,45 +1,33 @@
-# Variables for AWS infrastructure
+# Variables simplificadas para Helipistas Odoo 17
 
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
-variable "project_name" {
-  description = "Name of the project"
+variable "resource_prefix" {
+  description = "Prefix for all resource names"
   type        = string
-  default     = "helipistas-odoo"
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "production"
-}
-
-variable "vpc_cidr" {
-  description = "CIDR block for VPC"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
-variable "public_subnet_cidr" {
-  description = "CIDR block for public subnet"
-  type        = string
-  default     = "10.0.1.0/24"
+  default     = "HELIPISTAS-ODOO-17"
 }
 
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type principal"
   type        = string
   default     = "t3.medium"
 }
 
+variable "instance_types" {
+  description = "Lista de tipos de instancia alternativos para spot instances"
+  type        = list(string)
+  default     = ["t3.medium", "t3a.medium", "t2.medium", "m5.large", "m5a.large", "m4.large"]
+}
+
 variable "spot_price" {
-  description = "Maximum spot price per hour"
+  description = "Precio máximo para spot instances (USD por hora)"
   type        = string
-  default     = "0.05"
+  default     = "0.10"
 }
 
 variable "root_volume_size" {
@@ -48,15 +36,9 @@ variable "root_volume_size" {
   default     = 30
 }
 
-variable "public_key" {
-  description = "Public SSH key content"
+variable "key_pair_name" {
+  description = "Name of existing AWS Key Pair"
   type        = string
-}
-
-variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed for SSH and services access (0.0.0.0/0 = acceso desde cualquier IP)"
-  type        = string
-  default     = "0.0.0.0/0"
 }
 
 variable "odoo_master_password" {
@@ -71,32 +53,20 @@ variable "postgres_password" {
   sensitive   = true
 }
 
-variable "domain_name" {
-  description = "Domain name for the application"
-  type        = string
-  default     = ""
-}
-
-variable "letsencrypt_email" {
-  description = "Email for Let's Encrypt certificates"
-  type        = string
-  default     = ""
-}
-
 variable "existing_elastic_ip_id" {
-  description = "ID of existing Elastic IP to associate with the instance (optional)"
+  description = "ID of existing Elastic IP to use"
   type        = string
   default     = ""
 }
 
 variable "existing_efs_id" {
-  description = "ID of existing EFS file system to mount (optional)"
+  description = "ID of existing EFS file system to mount"
   type        = string
   default     = ""
 }
 
-variable "efs_mount_point" {
-  description = "Mount point for EFS in the EC2 instance"
+variable "domain_name" {
+  description = "Domain name for SSL certificate"
   type        = string
-  default     = "/efs"
+  default     = "erp17.helipistas.com"
 }

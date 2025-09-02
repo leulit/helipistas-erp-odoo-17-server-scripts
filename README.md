@@ -10,7 +10,7 @@ SERVER-SCRIPTS/
 │   ├── variables.tf          # Variables configurables
 │   ├── outputs.tf            # Outputs del despliegue
 │   ├── user_data.sh          # Script de auto-configuración EC2
-│   └── terraform.tfvars.plantilla # Plantilla de configuración
+│   └── terraform.tfvars           # Configuración del proyecto
 ├── docker/                    # 🐳 Configuración de contenedores
 │   ├── docker-compose.yml    # Servicios: Odoo, PostgreSQL, Nginx
 │   ├── .env.example          # Variables de entorno
@@ -146,7 +146,7 @@ aws efs describe-file-systems --file-system-id fs-1234567890abcdef0
 
 🚀 Para Empezar
 Configurar AWS CLI y Terraform
-Copiar y editar terraform.tfvars.plantilla
+Editar terraform.tfvars
 Ejecutar deploy.sh
 ¡Listo! Tu Odoo estará funcionando en minutos
 📚 Documentación

@@ -17,18 +17,15 @@
 ### 2. Configuración (2 minutos)
 
 ```bash
-# Copiar configuración de ejemplo
-cp terraform/terraform.tfvars.plantilla terraform/terraform.tfvars
-
-# Editar configuración mínima requerida:
+# Editar configuración del proyecto:
 nano terraform/terraform.tfvars
 ```
 
 **Variables OBLIGATORIAS** a cambiar en `terraform.tfvars`:
 
 ```hcl
-# Tu clave SSH pública (REQUERIDO)
-public_key = "ssh-rsa AAAAB3NzaC1yc2E..."  # Obtener con: cat ~/.ssh/id_rsa.pub
+# Clave SSH - Usa tu Key Pair existente de AWS (REQUERIDO)
+key_pair_name = "mi-clave-aws"  # Nombre de tu Key Pair en AWS (sin .pem)
 
 # Contraseñas seguras (REQUERIDO)
 odoo_master_password = "tu_contraseña_master_muy_segura"
@@ -37,6 +34,12 @@ postgres_password = "tu_contraseña_postgres_muy_segura"
 # Tu IP para SSH (RECOMENDADO por seguridad)
 allowed_ssh_cidr = "TU_IP_PUBLICA/32"  # Obtener con: curl ifconfig.me
 ```
+
+**📝 Sobre las Claves SSH:**
+- Usa el **nombre** de tu Key Pair de AWS (no el archivo .pem)
+- Si tu archivo se llama `mi-clave.pem`, el nombre del Key Pair es `mi-clave`
+- Para conectarte usarás: `ssh -i ~/.ssh/mi-clave.pem ec2-user@IP`
+- Consulta tus Key Pairs en: AWS Console → EC2 → Key Pairs
 
 ### 3. Despliegue (2 minutos)
 
@@ -47,7 +50,7 @@ allowed_ssh_cidr = "TU_IP_PUBLICA/32"  # Obtener con: curl ifconfig.me
 # Al final verás:
 # ✅ IP de la instancia: X.X.X.X
 # ✅ URL de Odoo: http://X.X.X.X
-# ✅ Comando SSH: ssh -i ~/.ssh/id_rsa ec2-user@X.X.X.X
+# ✅ Comando SSH: ssh -i ~/.ssh/mi-clave-aws.pem ec2-user@X.X.X.X
 ```
 
 ### 4. Verificación (30 segundos)

@@ -63,29 +63,33 @@ setup_config() {
     
     cd terraform
     
-    # Crear terraform.tfvars si no existe
+    # Verificar que terraform.tfvars existe y configurar valores automáticamente
     if [ ! -f terraform.tfvars ]; then
-        log "Creando terraform.tfvars..."
-        cp terraform.tfvars.plantilla terraform.tfvars
-        
-        # Generar contraseñas seguras
-        POSTGRES_PASS=$(openssl rand -base64 32)
-        ODOO_PASS=$(openssl rand -base64 32)
-        
-        # Obtener clave SSH pública
-        SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
-        
-        # Actualizar terraform.tfvars (acceso abierto desde cualquier IP)
-        sed -i.bak "s/public_key = .*/public_key = \"$SSH_KEY\"/" terraform.tfvars
-        sed -i.bak "s/allowed_ssh_cidr = .*/allowed_ssh_cidr = \"0.0.0.0\/0\"/" terraform.tfvars
-        sed -i.bak "s/odoo_master_password = .*/odoo_master_password = \"$ODOO_PASS\"/" terraform.tfvars
-        sed -i.bak "s/postgres_password = .*/postgres_password = \"$POSTGRES_PASS\"/" terraform.tfvars
-        
-        info "Configuración básica completada. Edita terraform.tfvars para personalizar."
-        info "Contraseñas generadas automáticamente - guárdalas en un lugar seguro:"
-        info "PostgreSQL: $POSTGRES_PASS"
-        info "Odoo Master: $ODOO_PASS"
+        error "terraform.tfvars no encontrado. El archivo debe existir en el directorio terraform/"
     fi
+    
+    log "Configurando valores automáticos en terraform.tfvars..."
+    
+    # Generar contraseñas seguras si no están configuradas
+    if grep -q "tu_contraseña_postgres_muy_segura" terraform.tfvars; then
+        POSTGRES_PASS=$(openssl rand -base64 32)
+        sed -i.bak "s/tu_contraseña_postgres_muy_segura/$POSTGRES_PASS/" terraform.tfvars
+        info "Contraseña PostgreSQL generada automáticamente: $POSTGRES_PASS"
+    fi
+    
+    if grep -q "tu_contraseña_master_odoo_muy_segura" terraform.tfvars; then
+        ODOO_PASS=$(openssl rand -base64 32)
+        sed -i.bak "s/tu_contraseña_master_odoo_muy_segura/$ODOO_PASS/" terraform.tfvars
+        info "Contraseña Odoo Master generada automáticamente: $ODOO_PASS"
+    fi
+    
+    # Configurar clave SSH si no está configurada
+    if grep -q "tu_clave_publica_aqui" terraform.tfvars; then
+        SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
+        sed -i.bak "s|ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... tu_clave_publica_aqui|$SSH_KEY|" terraform.tfvars
+    fi
+    
+    info "Configuración verificada. Revisa terraform.tfvars si necesitas personalizar algo."
     
     cd ..
 }
@@ -139,10 +143,10 @@ Para conectarse:
 $SSH_COMMAND
 
 Para verificar el estado:
-ssh -i ~/.ssh/id_rsa ec2-user@$INSTANCE_IP 'sudo /opt/odoo/status.sh'
+$SSH_COMMAND 'sudo /opt/odoo/status.sh'
 
 Para ver logs:
-ssh -i ~/.ssh/id_rsa ec2-user@$INSTANCE_IP 'sudo docker-compose -f /opt/odoo/docker-compose.yml logs -f'
+$SSH_COMMAND 'sudo docker-compose -f /opt/odoo/docker-compose.yml logs -f'
 EOF
     
     cd ..
