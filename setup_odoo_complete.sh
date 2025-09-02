@@ -175,9 +175,63 @@ ODOO_MASTER_PASSWORD=$ODOO_MASTER_PASSWORD
 EOF
 echo "✅ Archivo .env creado"
 
-# 5. INICIAR SERVICIOS
+# 5. CREAR ARCHIVO DE CONFIGURACIÓN ODOO
 echo "=========================================="
-echo "=== 5. INICIANDO SERVICIOS ==="
+echo "=== 5. CREANDO CONFIGURACIÓN ODOO ==="
+echo "=========================================="
+echo "Creando archivo odoo.conf con configuración optimizada..."
+
+cat > odoo/conf/odoo.conf << EOF
+[options]
+# Database settings
+db_host = postgresOdoo16
+db_port = 5432
+db_user = odoo
+db_password = $POSTGRES_PASSWORD
+db_name = False
+db_template = template0
+
+# Server settings
+http_port = 8069
+workers = 2
+max_cron_threads = 1
+admin_passwd = $ODOO_MASTER_PASSWORD
+
+# File paths
+addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+data_dir = /var/lib/odoo
+
+# Logging
+log_level = info
+log_handler = :INFO
+
+# Security
+list_db = True
+dbfilter = ^.*$
+
+# Performance
+limit_memory_hard = 1677721600
+limit_memory_soft = 1342177280
+limit_request = 8192
+limit_time_cpu = 600
+limit_time_real = 1200
+
+# Proxy mode (for Nginx)
+proxy_mode = True
+
+# Session
+session_dir = /var/lib/odoo/sessions
+EOF
+
+# Establecer permisos correctos
+chown 101:101 /efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf
+chmod 644 /efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf
+
+echo "✅ Archivo odoo.conf creado y configurado"
+
+# 6. INICIAR SERVICIOS
+echo "=========================================="
+echo "=== 6. INICIANDO SERVICIOS ==="
 echo "=========================================="
 echo "Iniciando stack de Docker Compose..."
 /usr/local/bin/docker-compose up -d
@@ -185,16 +239,16 @@ echo "Iniciando stack de Docker Compose..."
 echo "Esperando que Nginx esté listo..."
 sleep 30
 
-# 6. OBTENER CERTIFICADO LET'S ENCRYPT
+# 7. OBTENER CERTIFICADO LET'S ENCRYPT
 echo "=========================================="
-echo "=== 6. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
+echo "=== 7. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
 echo "=========================================="
 echo "Obteniendo certificado SSL de Let's Encrypt..."
 
 # Ejecutar certbot para obtener certificado
 /usr/local/bin/docker-compose run --rm certbot
 
-# 7. VERIFICAR Y CONFIGURAR HTTPS
+# 8. VERIFICAR Y CONFIGURAR HTTPS
 if [ -f "certbot/conf/live/$DOMAIN_NAME/fullchain.pem" ]; then
     echo "✅ Certificado Let's Encrypt obtenido exitosamente!"
     
@@ -274,9 +328,9 @@ else
     echo "Puedes obtener el certificado manualmente después del despliegue."
 fi
 
-# 8. CONFIGURAR RENOVACIÓN AUTOMÁTICA
+# 9. CONFIGURAR RENOVACIÓN AUTOMÁTICA
 echo "=========================================="
-echo "=== 8. CONFIGURANDO RENOVACIÓN AUTOMÁTICA ==="
+echo "=== 9. CONFIGURANDO RENOVACIÓN AUTOMÁTICA ==="
 echo "=========================================="
 echo "Configurando cron para renovación automática..."
 
@@ -295,9 +349,9 @@ echo "0 12 1,15 * * /efs/HELIPISTAS-ODOO-17/renew_ssl.sh >> /var/log/letsencrypt
 
 echo "✅ Renovación automática configurada (1º y 15 de cada mes a las 12:00)"
 
-# 9. VERIFICAR ESTADO
+# 10. VERIFICAR ESTADO
 echo "=========================================="
-echo "=== 9. VERIFICANDO SERVICIOS ==="
+echo "=== 10. VERIFICANDO SERVICIOS ==="
 echo "=========================================="
 echo "Esperando que los servicios se inicialicen..."
 sleep 30
