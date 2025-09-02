@@ -24,9 +24,102 @@ fi
 PROJECT_DIR="/efs/HELIPISTAS-ODOO-17"
 cd "$PROJECT_DIR"
 
-# 1. CREAR CONFIGURACIÓN NGINX INICIAL
+# 1. CORREGIR PERMISOS PARA DOCKER
 echo "=========================================="
-echo "=== 1. CONFIGURANDO NGINX ==="
+echo "=== 1. CORRIGIENDO PERMISOS ==="
+echo "=========================================="
+echo "Corrigiendo permisos de carpetas para Docker..."
+
+# Establecer permisos correctos para contenedores Docker
+chown -R 101:101 /efs/HELIPISTAS-ODOO-17/odoo/
+chown -R 999:999 /efs/HELIPISTAS-ODOO-17/postgres/
+chown -R 101:101 /efs/HELIPISTAS-ODOO-17/certbot/
+chown -R 101:101 /efs/HELIPISTAS-ODOO-17/nginx/
+
+echo "✅ Permisos corregidos para Docker"
+
+# 2. CREAR DOCKER-COMPOSE
+echo "=========================================="
+echo "=== 2. CREANDO DOCKER-COMPOSE ==="
+echo "=========================================="
+echo "Creando docker-compose.yml con volúmenes EFS..."
+
+cat > docker-compose.yml << EOF
+version: '3.8'
+services:
+  postgresOdoo16:
+    image: postgres:15
+    container_name: helipistas_postgres
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /efs/HELIPISTAS-ODOO-17/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - helipistas_network
+
+  helipistas_odoo:
+    image: odoo:17
+    container_name: helipistas_odoo
+    depends_on:
+      - postgresOdoo16
+    environment:
+      HOST: postgresOdoo16
+      USER: odoo
+      PASSWORD: $POSTGRES_PASSWORD
+    volumes:
+      - /efs/HELIPISTAS-ODOO-17/odoo/conf:/etc/odoo
+      - /efs/HELIPISTAS-ODOO-17/odoo/addons:/mnt/extra-addons
+      - /efs/HELIPISTAS-ODOO-17/odoo/filestore:/var/lib/odoo/filestore
+      - /efs/HELIPISTAS-ODOO-17/odoo/sessiones:/var/lib/odoo/sessions
+    ports:
+      - "8069:8069"
+    restart: unless-stopped
+    networks:
+      - helipistas_network
+
+  nginx:
+    image: nginx:latest
+    container_name: helipistas_nginx
+    depends_on:
+      - helipistas_odoo
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /efs/HELIPISTAS-ODOO-17/nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
+      - /efs/HELIPISTAS-ODOO-17/nginx/ssl:/etc/nginx/ssl
+      - /efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot
+      - /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt
+    restart: unless-stopped
+    networks:
+      - helipistas_network
+
+  certbot:
+    image: certbot/certbot
+    container_name: helipistas_certbot
+    volumes:
+      - /efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot
+      - /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@helipistas.com --agree-tos --no-eff-email -d 54.228.16.152
+    depends_on:
+      - nginx
+
+networks:
+  helipistas_network:
+    driver: bridge
+EOF
+
+echo "✅ Docker Compose creado en: $PROJECT_DIR/docker-compose.yml"
+
+# 3. CREAR CONFIGURACIÓN NGINX INICIAL
+echo "=========================================="
+echo "=== 3. CONFIGURANDO NGINX ==="
 echo "=========================================="
 echo "Creando configuración de Nginx con Let's Encrypt..."
 
@@ -72,9 +165,9 @@ EOF
 
 echo "✅ Configuración inicial de Nginx creada"
 
-# 2. CREAR ARCHIVO .ENV
+# 4. CREAR VARIABLES DE ENTORNO
 echo "=========================================="
-echo "=== 2. CREANDO VARIABLES DE ENTORNO ==="
+echo "=== 4. CREANDO VARIABLES DE ENTORNO ==="
 echo "=========================================="
 cat > .env << EOF
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -82,9 +175,9 @@ ODOO_MASTER_PASSWORD=$ODOO_MASTER_PASSWORD
 EOF
 echo "✅ Archivo .env creado"
 
-# 3. INICIAR SERVICIOS
+# 5. INICIAR SERVICIOS
 echo "=========================================="
-echo "=== 3. INICIANDO SERVICIOS ==="
+echo "=== 5. INICIANDO SERVICIOS ==="
 echo "=========================================="
 echo "Iniciando stack de Docker Compose..."
 /usr/local/bin/docker-compose up -d
@@ -92,16 +185,16 @@ echo "Iniciando stack de Docker Compose..."
 echo "Esperando que Nginx esté listo..."
 sleep 30
 
-# 4. OBTENER CERTIFICADO LET'S ENCRYPT
+# 6. OBTENER CERTIFICADO LET'S ENCRYPT
 echo "=========================================="
-echo "=== 4. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
+echo "=== 6. OBTENIENDO CERTIFICADO LET'S ENCRYPT ==="
 echo "=========================================="
 echo "Obteniendo certificado SSL de Let's Encrypt..."
 
 # Ejecutar certbot para obtener certificado
 /usr/local/bin/docker-compose run --rm certbot
 
-# 5. VERIFICAR Y CONFIGURAR HTTPS
+# 7. VERIFICAR Y CONFIGURAR HTTPS
 if [ -f "certbot/conf/live/54.228.16.152/fullchain.pem" ]; then
     echo "✅ Certificado Let's Encrypt obtenido exitosamente!"
     
@@ -181,9 +274,9 @@ else
     echo "Puedes obtener el certificado manualmente después del despliegue."
 fi
 
-# 6. CONFIGURAR RENOVACIÓN AUTOMÁTICA
+# 8. CONFIGURAR RENOVACIÓN AUTOMÁTICA
 echo "=========================================="
-echo "=== 6. CONFIGURANDO RENOVACIÓN AUTOMÁTICA ==="
+echo "=== 8. CONFIGURANDO RENOVACIÓN AUTOMÁTICA ==="
 echo "=========================================="
 echo "Configurando cron para renovación automática..."
 
@@ -202,9 +295,9 @@ echo "0 12 1,15 * * /efs/HELIPISTAS-ODOO-17/renew_ssl.sh >> /var/log/letsencrypt
 
 echo "✅ Renovación automática configurada (1º y 15 de cada mes a las 12:00)"
 
-# 7. VERIFICAR ESTADO
+# 9. VERIFICAR ESTADO
 echo "=========================================="
-echo "=== 7. VERIFICANDO SERVICIOS ==="
+echo "=== 9. VERIFICANDO SERVICIOS ==="
 echo "=========================================="
 echo "Esperando que los servicios se inicialicen..."
 sleep 30
