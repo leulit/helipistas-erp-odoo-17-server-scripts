@@ -1,593 +1,1202 @@
-# 🚀 **Guía Completa de Despliegue - Helipistas ERP Odoo 17**
-
-[![AWS](https://img.shields.io/badge/AWS-EC2%20Spot-orange)](https://aws.amazon.com)
-[![Terraform](https://img.shields.io/badge/Terraform-Infrastructure-blue)](https://terraform.io)
-[![Docker](https://img.shields.io/badge/Docker-Containers-blue)](https://docker.com)
-[![Odoo](https://img.shields.io/badge/Odoo-17-purple)](https://odoo.com)
-
-## **📋 Análisis del Proyecto**
-
-### **🏗️ Arquitectura Completa**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     AWS CLOUD                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────┐ │
-│  │   Elastic IP    │  │   EC2 Spot      │  │   EFS   │ │
-│  │   (Estática)    │→ │   t3.medium     │←→│(Opcional)│ │
-│  └─────────────────┘  │                 │  └─────────┘ │
-│                       │  ┌───────────┐  │              │
-│                       │  │   Docker  │  │              │
-│                       │  │ ┌───────┐ │  │              │
-│                       │  │ │ Nginx │ │  │              │
-│                       │  │ │ Proxy │ │  │              │
-│                       │  │ └───────┘ │  │              │
-│                       │  │ ┌───────┐ │  │              │
-│                       │  │ │ Odoo  │ │  │              │
-│                       │  │ │  17   │ │  │              │
-│                       │  │ └───────┘ │  │              │
-│                       │  │ ┌───────┐ │  │              │
-│                       │  │ │Postgre│ │  │              │
-│                       │  │ │SQL 15 │ │  │              │
-│                       │  │ └───────┘ │  │              │
-│                       │  └───────────┘  │              │
-│                       └─────────────────┘              │
-└─────────────────────────────────────────────────────────┘
-```
-
-### **✅ Componentes Incluidos**
-
-- **🏗️ Infraestructura AWS** (Terraform)
-  - VPC privada con subnet pública
-  - EC2 Spot Instance (60-90% más barato)
-  - Security Groups optimizados
-  - Elastic IP estática
-  - EFS opcional para persistencia
-
-- **🐳 Stack Docker Optimizado**
-  - **Nginx**: Proxy reverso con SSL y caché
-  - **Odoo 17**: Configuración optimizada para producción
-  - **PostgreSQL 15**: Base de datos con tuning avanzado
-  - **Health checks** y auto-restart automático
-
-- **🛠️ Scripts de Automatización**
-  - `deploy.sh`: Despliegue automático completo
-  - `manage.sh`: Gestión y mantenimiento
-  - `backup.sh`: Backups automáticos a S3
-  - `monitor.sh`: Monitoreo y alertas
-
-## **🔧 Prerequisites**
-
-### **1. Software Requerido**
-
-```bash
-# Verificar que tienes instalado:
-terraform --version   # Terraform >= 1.0
-aws --version        # AWS CLI v2
-git --version        # Git
-```
-
-**Instalar si falta:**
-```bash
-# Terraform
-# macOS: brew install terraform
-# Linux: wget https://releases.hashicorp.com/terraform/1.5.0/terraform_1.5.0_linux_amd64.zip
-
-# AWS CLI v2
-# macOS: brew install awscli
-# Linux: curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-```
-
-### **2. Configuración AWS**
-
-```bash
-# Configurar credenciales AWS
-aws configure
-
-# Introducir:
-# AWS Access Key ID: [tu-access-key]
-# AWS Secret Access Key: [tu-secret-key]  
-# Default region name: eu-west-1
-# Default output format: json
-
-# Verificar configuración
-aws sts get-caller-identity
-```
-
-### **3. Key Pair de AWS**
-
-```bash
-# Verificar tus Key Pairs existentes
-aws ec2 describe-key-pairs --region eu-west-1
-
-# O desde la consola web:
-# AWS Console → EC2 → Key Pairs → Ver nombre de tu clave
-# Ejemplo: si tienes "mi-clave.pem", el nombre es "mi-clave"
-```
-
-## **⚙️ Configuración del Proyecto**
-
-### **Tu Configuración Actual**
-
-El proyecto está preconfigurado con tus valores:
-
-```hcl
-# terraform/terraform.tfvars
-aws_region = "eu-west-1a"              # ✅ Tu región Europa
-project_name = "helipistas-odoo"       # ✅ Tu proyecto
-environment = "HLP-ERP-ODOO-17"        # ✅ Tu entorno
-odoo_master_password = "helipistas@2025"   # ✅ Tu contraseña Odoo
-postgres_password = "helipistas@2025"      # ✅ Tu contraseña BD
-```
-
-### **📝 Solo Necesitas Cambiar**
-
-```bash
-# Editar el archivo de configuración
-nano terraform/terraform.tfvars
-
-# ÚNICA línea que debes cambiar:
-key_pair_name = "tu-key-pair-real-de-aws"  # ← Cambiar por tu Key Pair real
-```
-
-**Ejemplo:**
-```hcl
-# Si tu archivo se llama "helipistas-key.pem"
-key_pair_name = "helipistas-key"
-
-# Si tu archivo se llama "aws-main.pem"  
-key_pair_name = "aws-main"
-```
-
-## **🚀 Proceso de Despliegue**
-
-### **Opción A: Despliegue Automático (Recomendado)**
-
-```bash
-# 1. Verificar que todo está listo
-./deploy.sh --check
-
-# 2. Despliegue completo automático
-./deploy.sh
-
-# 🕐 Tiempo total: 5-10 minutos
-# ✅ Al final tendrás tu servidor Odoo funcionando
-```
-
-**Lo que hace automáticamente:**
-1. ✅ Verifica prerequisites
-2. ✅ Valida configuración
-3. ✅ Crea infraestructura AWS
-4. ✅ Instala Docker en EC2
-5. ✅ Descarga y configura Odoo
-6. ✅ Configura base de datos PostgreSQL
-7. ✅ Configura proxy Nginx
-8. ✅ Inicia todos los servicios
-9. ✅ Genera información de acceso
-
-### **Opción B: Despliegue Manual (Paso a Paso)**
-
-```bash
-# 1. Inicializar Terraform
-cd terraform
-terraform init
-
-# 2. Ver qué se va a crear
-terraform plan
-
-# 3. Crear infraestructura
-terraform apply
-# Responder: yes
-
-# 4. Obtener IP del servidor
-terraform output instance_public_ip
-
-# 5. Esperar instalación automática (5-10 min)
-# El servidor se auto-configura solo
-
-# 6. Verificar estado
-cd ..
-./manage.sh status
-```
-
-## **📊 Información de Despliegue**
-
-### **Datos de Tu Configuración**
-
-```bash
-# Después del despliegue verás:
-╔════════════════════════════════════════════════════════════════════╗
-║                    🚀 DESPLIEGUE COMPLETADO                       ║
-╠════════════════════════════════════════════════════════════════════╣
-║ 📊 Proyecto: helipistas-odoo                                      ║
-║ 🌍 Región: eu-west-1a                                             ║
-║ 💻 Instancia: t3.medium (Spot Instance)                           ║
-║ 🔗 IP Pública: X.X.X.X                                            ║
-║ 🌐 URL Odoo: http://X.X.X.X                                       ║
-║ 🔑 SSH: ssh -i ~/.ssh/tu-clave.pem ec2-user@X.X.X.X               ║
-║ 🗄️ Base de datos: PostgreSQL 15                                   ║
-║ 🔐 Contraseñas: helipistas@2025                                   ║
-╚════════════════════════════════════════════════════════════════════╝
-```
-
-## **✅ Verificación Post-Despliegue**
-
-### **1. Verificar Estado del Sistema**
-
-```bash
-# Estado completo de servicios
-./manage.sh status
-
-# Output esperado:
-# ✅ Instancia EC2: Ejecutándose
-# ✅ Docker: Activo
-# ✅ Nginx: Funcionando (Puerto 80)
-# ✅ Odoo: Funcionando (Puerto 8069)
-# ✅ PostgreSQL: Funcionando (Puerto 5432)
-```
-
-### **2. Verificar Acceso Web**
-
-```bash
-# Obtener URL de acceso
-./manage.sh info
-
-# Abrir en navegador:
-open http://IP-DE-TU-SERVIDOR
-```
-
-### **3. Verificar Logs**
-
-```bash
-# Ver logs en tiempo real
-./manage.sh logs
-
-# Ver logs específicos
-./manage.sh logs odoo      # Solo Odoo
-./manage.sh logs nginx     # Solo Nginx
-./manage.sh logs postgres  # Solo PostgreSQL
-```
-
-## **🔧 Primera Configuración de Odoo**
-
-### **Paso 1: Acceder a la Interfaz Web**
-
-1. Abrir navegador en: `http://IP-DE-TU-SERVIDOR`
-2. Verás la pantalla de configuración inicial de Odoo
-
-### **Paso 2: Crear Base de Datos**
-
-```
-🗄️ Configuración de Base de Datos Recomendada:
-┌─────────────────────────────────────────────────┐
-│ Database Name: helipistas_erp                   │
-│ Email: admin@helipistas.com                     │
-│ Password: helipistas@2025                       │
-│ Phone: +34 XXX XXX XXX (opcional)              │
-│ Language: Español                               │
-│ Country: España                                 │
-│ Demo data: ❌ No (para producción)              │
-└─────────────────────────────────────────────────┘
-```
-
-### **Paso 3: Módulos Recomendados**
-
-Para un ERP completo, instalar:
-- ✅ **Contabilidad**: Facturación y contabilidad
-- ✅ **Ventas**: Gestión de ventas y CRM
-- ✅ **Compras**: Gestión de proveedores
-- ✅ **Inventario**: Control de stock
-- ✅ **Proyecto**: Gestión de proyectos
-- ✅ **RRHH**: Recursos humanos (opcional)
-
-## **🛠️ Gestión del Servidor**
-
-### **Comandos Principales**
-
-```bash
-# 📊 Estado y monitoreo
-./manage.sh status          # Estado completo del sistema
-./manage.sh monitor         # Recursos en tiempo real (CPU, RAM, disco)
-./manage.sh costs           # Costos AWS actuales
-./manage.sh info            # Información de conexión
-
-# 🔄 Control de servicios
-./manage.sh restart         # Reiniciar todos los servicios
-./manage.sh stop            # Parar servicios
-./manage.sh start           # Iniciar servicios
-./manage.sh update          # Actualizar contenedores
-
-# 📋 Logs y debugging
-./manage.sh logs            # Logs de todos los servicios
-./manage.sh logs odoo       # Solo logs de Odoo
-./manage.sh logs -f         # Seguir logs en tiempo real
-
-# 🔗 Acceso remoto
-./manage.sh ssh             # Conectar por SSH
-./manage.sh remote "comando" # Ejecutar comando remoto
-```
-
-### **Comandos de Backup y Restauración**
-
-```bash
-# 💾 Backups
-./manage.sh backup                    # Backup completo
-./manage.sh backup --upload-s3        # Backup y subir a S3
-./manage.sh list-backups              # Listar backups disponibles
-./manage.sh download-backup archivo   # Descargar backup específico
-
-# 🔄 Restauración
-./manage.sh restore archivo.tar.gz    # Restaurar desde backup
-./manage.sh restore --from-s3 archivo # Restaurar desde S3
-```
-
-## **🔐 Seguridad y SSL**
-
-### **SSL/HTTPS Automático (Si tienes dominio)**
-
-```bash
-# Configurar SSL con Let's Encrypt
-./manage.sh setup-ssl tudominio.com admin@tudominio.com
-
-# Después de esto:
-# ✅ Tu Odoo estará en: https://tudominio.com
-# ✅ Certificado renovación automática
-# ✅ Redirección HTTP → HTTPS automática
-```
-
-### **Configuración de Seguridad**
-
-Tu configuración actual permite acceso desde cualquier IP:
-```hcl
-allowed_ssh_cidr = "0.0.0.0/0"  # Acceso desde cualquier IP
-```
-
-**Para mayor seguridad:**
-```bash
-# Obtener tu IP pública
-curl ifconfig.me
-
-# Editar terraform.tfvars
-allowed_ssh_cidr = "TU_IP/32"  # Solo tu IP
-
-# Aplicar cambio
-cd terraform && terraform apply
-```
-
-## **💰 Optimización de Costos**
-
-### **Tu Configuración Actual (Muy Económica)**
-
-```
-💰 Costos Estimados Mensuales:
-┌─────────────────────────────────────────────┐
-│ EC2 t3.medium Spot: ~$15-25/mes            │
-│ Disco EBS 30GB: ~$3/mes                    │
-│ Elastic IP: ~$3.6/mes                      │
-│ Transferencia datos: ~$1-5/mes             │
-│ ────────────────────────────────────────────│
-│ TOTAL: ~$22-37/mes                         │
-│ (vs $80-120/mes instancia normal)          │
-└─────────────────────────────────────────────┘
-```
-
-### **Monitoreo de Costos**
-
-```bash
-# Ver costos actuales
-./manage.sh costs
-
-# Configurar alertas de costos (opcional)
-./manage.sh setup-cost-alerts 50  # Alerta si supera $50/mes
-```
-
-### **Optimización para Desarrollo**
-
-```bash
-# En terraform.tfvars para ahorrar más:
-instance_type = "t3.small"      # Instancia más pequeña
-spot_price = "0.02"             # Precio spot más bajo
-root_volume_size = 20           # Disco más pequeño
-```
-
-## **🚨 Solución de Problemas**
-
-### **Error: "No se pudo obtener la IP de la instancia"**
-
-```bash
-# Verificar estado de Terraform
-cd terraform
-terraform output
-
-# Si no hay outputs:
-terraform refresh
-terraform output
-
-# Si persiste, re-desplegar:
-cd .. && ./deploy.sh --deploy
-```
-
-### **Error: "Odoo no responde"**
-
-```bash
-# 1. Verificar si aún se está configurando (esperar 5-10 min)
-./manage.sh status
-
-# 2. Ver logs para diagnóstico
-./manage.sh logs odoo
-
-# 3. Reiniciar servicios si es necesario
-./manage.sh restart
-
-# 4. Verificar que Docker está funcionando
-./manage.sh remote "sudo docker ps"
-```
-
-### **Error: "Permission denied" en SSH**
-
-```bash
-# Verificar que existe tu clave
-ls -la ~/.ssh/*.pem
-
-# Verificar permisos de la clave
-chmod 400 ~/.ssh/tu-clave.pem
-
-# Verificar nombre de la clave en configuración
-grep key_pair_name terraform/terraform.tfvars
-```
-
-### **Error: "AWS credentials not configured"**
-
-```bash
-# Configurar AWS CLI
-aws configure
-
-# Verificar configuración
-aws sts get-caller-identity
-
-# Verificar permisos IAM necesarios
-aws ec2 describe-regions
-```
-
-### **Error: "Spot instance terminated"**
-
-```bash
-# Las spot instances pueden terminarse si hay alta demanda
-# Verificar estado:
-./manage.sh status
-
-# Re-desplegar si es necesario:
-./deploy.sh
-
-# Para mayor estabilidad, usar instancia normal:
-# En terraform.tfvars cambiar por instancia normal:
-# spot_price = ""  # Dejar vacío para instancia normal
-```
-
-## **📋 Checklist de Despliegue Exitoso**
-
-### **Pre-Despliegue**
-- [ ] ✅ Terraform instalado (`terraform --version`)
-- [ ] ✅ AWS CLI instalado (`aws --version`)
-- [ ] ✅ AWS configurado (`aws sts get-caller-identity`)
-- [ ] ✅ Key Pair identificado (`aws ec2 describe-key-pairs`)
-- [ ] ✅ `terraform.tfvars` configurado con `key_pair_name` real
-
-### **Durante Despliegue**
-- [ ] ✅ `./deploy.sh` ejecutado sin errores
-- [ ] ✅ Terraform apply completado exitosamente
-- [ ] ✅ Instancia EC2 creada y funcionando
-- [ ] ✅ IP pública asignada correctamente
-
-### **Post-Despliegue**
-- [ ] ✅ `./manage.sh status` muestra todos los servicios activos
-- [ ] ✅ Acceso web funciona (`http://IP-DEL-SERVIDOR`)
-- [ ] ✅ SSH funciona (`./manage.sh ssh`)
-- [ ] ✅ Base de datos creada en Odoo
-- [ ] ✅ Backup inicial creado (`./manage.sh backup`)
-- [ ] ✅ SSL configurado (si tienes dominio)
-
-## **🔄 Mantenimiento y Actualizaciones**
-
-### **Actualizaciones Controladas**
-
-```bash
-# 1. Backup obligatorio antes de actualizar
-./manage.sh backup
-
-# 2. Actualizar contenedores uno por uno
-./manage.sh remote "cd /efs/HLP-ERP-ODOO-17 && docker-compose pull odoo"
-./manage.sh remote "cd /efs/HLP-ERP-ODOO-17 && docker-compose up -d odoo"
-
-# 3. Verificar funcionamiento
-./manage.sh status
-./manage.sh logs odoo
-
-# 4. Repetir para otros servicios si es necesario
-```
-
-### **Mantenimiento Regular**
-
-```bash
-# Semanal
-./manage.sh backup                # Backup semanal
-./manage.sh monitor               # Revisar recursos
-./manage.sh costs                 # Revisar costos
-
-# Mensual
-./manage.sh update                # Actualizar contenedores
-./manage.sh cleanup               # Limpiar logs y archivos temporales
-```
-
-## **🎯 Comandos de Conexión SSH**
-
-### **Conexión Básica**
-
-```bash
-# Usando el script (recomendado)
-./manage.sh ssh
-
-# Conexión manual
-ssh -i ~/.ssh/tu-clave.pem ec2-user@IP-DEL-SERVIDOR
-```
-
-### **Comandos Útiles en el Servidor**
-
-```bash
-# Una vez conectado por SSH:
-
-# Ver contenedores Docker
-sudo docker ps
-
-# Logs de servicios
-sudo docker-compose -f /efs/HLP-ERP-ODOO-17/docker-compose.yml logs -f
-
-# Ver uso de recursos
-htop
-df -h
-free -h
-
-# Reiniciar servicios
-sudo docker-compose -f /efs/HLP-ERP-ODOO-17/docker-compose.yml restart
-
-# Ver configuración de Odoo
-sudo cat /efs/HLP-ERP-ODOO-17/ODOO/config/odoo.conf
-```
-
-## **📱 Acceso Móvil**
-
-Odoo incluye interfaz móvil optimizada:
-- 📱 **URL móvil**: `http://IP-DEL-SERVIDOR` (misma URL)
-- 📱 **App Odoo**: Disponible en App Store y Google Play
-- 📱 **Configuración**: Usar la IP o dominio de tu servidor
-
-## **🎉 ¡Felicidades!**
-
-Tu servidor Helipistas ERP con Odoo 17 está funcionando con:
-
-- ✅ **AWS EC2 Spot Instance** (60-90% más barato)
-- ✅ **Docker optimizado** para producción
-- ✅ **Nginx con caché** para mejor rendimiento
-- ✅ **PostgreSQL 15** optimizado
-- ✅ **Backups automáticos** incluidos
-- ✅ **SSL/HTTPS** opcional
-- ✅ **Monitoreo** y alertas
-- ✅ **Scripts de gestión** completos
+# 🚀 Helipistas ERP - Odoo 17 en AWS
+
+## 📋 Índice
+
+1. [Descripción General](#-descripción-general)
+2. [Arquitectura del Sistema](#-arquitectura-del-sistema)
+3. [Estructura del Proyecto](#-estructura-del-proyecto)
+4. [Requisitos Previos](#-requisitos-previos)
+5. [Configuración Inicial](#-configuración-inicial)
+6. [Despliegue de Infraestructura](#-despliegue-de-infraestructura)
+7. [Flujo de Deployment Automático](#-flujo-de-deployment-automático)
+8. [Gestión y Mantenimiento](#-gestión-y-mantenimiento)
+9. [Arquitectura de Datos](#-arquitectura-de-datos)
+10. [Seguridad y SSL](#-seguridad-y-ssl)
+11. [Troubleshooting](#-troubleshooting)
+12. [Referencias Técnicas](#-referencias-técnicas)
 
 ---
 
-## **📞 Soporte y Recursos**
+## 📖 Descripción General
 
-### **Documentación Adicional**
-- 📖 `QUICKSTART.md`: Guía de inicio en 5 minutos
-- 🏗️ `PROYECTO-ESTRUCTURA.md`: Estructura detallada del proyecto
-- ⚡ `TERRAFORM_VS_AWS_CLI.md`: Comparativa de herramientas
+Este proyecto implementa una infraestructura completa de **Odoo 17 ERP** en AWS usando **Infrastructure as Code (Terraform)**, con despliegue completamente automatizado, alta disponibilidad mediante EFS, SSL/HTTPS automático con Let's Encrypt, y arquitectura basada en contenedores Docker.
 
-### **Comandos de Ayuda**
-```bash
-./deploy.sh --help          # Ayuda del despliegue
-./manage.sh --help          # Ayuda de gestión
-./manage.sh info            # Información de conexión
+### 🎯 Características Principales
+
+- ✅ **Despliegue Completamente Automatizado**: Un solo comando (`terraform apply`) despliega toda la infraestructura
+- ✅ **Persistencia de Datos con EFS**: Los datos sobreviven a la recreación de instancias EC2
+- ✅ **SSL/HTTPS Automático**: Certificados Let's Encrypt con renovación automática
+- ✅ **Arquitectura Docker**: PostgreSQL 15 + Odoo 17 + Nginx con proxy reverso
+- ✅ **Alta Disponibilidad**: EFS compartido permite múltiples instancias
+- ✅ **IP Estática**: Elastic IP reutilizable para mantener DNS consistente
+- ✅ **Infraestructura Reproducible**: Terraform permite recrear la infraestructura idéntica en cualquier momento
+- ✅ **Configuración Optimizada**: Odoo configurado para producción con workers y proxy mode
+
+### 💡 Casos de Uso
+
+- **Empresas que necesitan ERP robusto y económico** en la nube
+- **Desarrollo y testing** con infraestructura efímera
+- **Múltiples ambientes** (dev, staging, producción) con la misma configuración
+- **Disaster recovery** con capacidad de recrear infraestructura rápidamente
+
+---
+
+## 🏗️ Arquitectura del Sistema
+
+### Diagrama de Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         INTERNET                             │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     │ HTTPS (443) / HTTP (80)
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│              AWS Elastic IP (54.228.16.152)                  │
+│              DNS: erp17.helipistas.com                       │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                   EC2 Instance (t3.medium)                   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │         Docker Container: Nginx (Proxy Reverso)      │   │
+│  │  - SSL Termination (Let's Encrypt)                  │   │
+│  │  - Proxy Pass a Odoo                                │   │
+│  │  - Certificados auto-renovables                     │   │
+│  └──────────────────┬───────────────────────────────────┘   │
+│                     │                                        │
+│  ┌──────────────────▼───────────────────────────────────┐   │
+│  │         Docker Container: Odoo 17                    │   │
+│  │  - Puerto 8069                                       │   │
+│  │  - 2 Workers configurados                           │   │
+│  │  - Proxy mode habilitado                            │   │
+│  └──────────────────┬───────────────────────────────────┘   │
+│                     │                                        │
+│  ┌──────────────────▼───────────────────────────────────┐   │
+│  │         Docker Container: PostgreSQL 15              │   │
+│  │  - Puerto 5432                                       │   │
+│  │  - Usuario: odoo                                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │    Volumes montados desde EFS (fs-ec7152d9)          │   │
+│  │  /efs/HELIPISTAS-ODOO-17/                            │   │
+│  │    ├── postgres/      (Base de datos)                │   │
+│  │    ├── odoo/          (Addons, filestore, config)    │   │
+│  │    ├── nginx/         (Configuración)                │   │
+│  │    └── certbot/       (Certificados SSL)             │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+                     │
+                     │ NFS4 Mount
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│         AWS EFS (Elastic File System)                        │
+│         fs-ec7152d9.efs.eu-west-1.amazonaws.com             │
+│  - Almacenamiento persistente                               │
+│  - Compartido entre instancias                              │
+│  - Backups automáticos de AWS                               │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**🚀 Tu servidor ERP está listo para producción. ¡A trabajar!**
+### Componentes Clave
+
+| Componente | Tecnología | Propósito |
+|------------|-----------|-----------|
+| **EC2 Instance** | Amazon Linux 2 (t3.medium) | Servidor de aplicaciones |
+| **EFS** | AWS Elastic File System | Almacenamiento persistente compartido |
+| **Elastic IP** | AWS EIP (eipalloc-0184418cc26d4e66f) | IP pública estática |
+| **VPC** | vpc-92d074f6 | Red virtual privada existente |
+| **Security Group** | HELIPISTAS-ODOO-17-SG | Firewall de red |
+| **Odoo** | Docker odoo:17 | Aplicación ERP |
+| **PostgreSQL** | Docker postgres:15 | Base de datos |
+| **Nginx** | Docker nginx:latest | Proxy reverso y SSL |
+| **Certbot** | Docker certbot/certbot | Gestión de certificados SSL |
+
+---
+
+## 📂 Estructura del Proyecto
+
+```
+SERVER-SCRIPTS/
+│
+├── terraform/                          # 🏗️ Infraestructura como código
+│   ├── main.tf                        # Definición de recursos AWS
+│   ├── variables.tf                   # Variables configurables
+│   ├── outputs.tf                     # Outputs del deployment
+│   ├── terraform.tfvars               # Configuración específica (GITIGNORED)
+│   ├── terraform.tfvars.example       # Ejemplo de configuración
+│   ├── user_data_simple.sh            # Script de inicialización EC2
+│   └── templates/                     # Plantillas de configuración
+│       ├── docker-compose.yml
+│       ├── nginx.conf
+│       └── odoo.conf
+│
+├── setup_odoo_complete.sh             # 🔧 Script principal de configuración
+│                                       # (Se descarga y ejecuta desde GitHub)
+│
+├── docker/                            # 🐳 Configuración Docker (referencia)
+│   ├── docker-compose.yml
+│   ├── config/odoo.conf
+│   └── nginx/
+│       ├── nginx.conf
+│       └── default.conf
+│
+├── scripts/                           # 🛠️ Utilidades de mantenimiento
+│   ├── backup.sh                     # Backup de datos
+│   ├── restore.sh                    # Restauración de backups
+│   └── monitor.sh                    # Monitoreo de servicios
+│
+├── README.md                          # 📖 Este archivo
+├── LICENSE                            # 📄 Licencia MIT
+└── .gitignore                        # 🙈 Archivos ignorados
+```
+
+### Archivos Clave
+
+#### `terraform/main.tf`
+Define toda la infraestructura AWS:
+- Data sources para VPC, subnet y AMI existentes
+- Security Group con puertos 22, 80, 443, 8069
+- Instancia EC2 con user_data que ejecuta `user_data_simple.sh`
+- Asociación de Elastic IP a la instancia
+
+#### `terraform/user_data_simple.sh`
+Script que se ejecuta al crear la instancia EC2:
+1. Instala dependencias (Docker, AWS CLI, NFS utils)
+2. Monta el EFS en `/efs`
+3. Crea estructura de directorios
+4. Descarga `setup_odoo_complete.sh` desde GitHub
+5. Ejecuta el setup completo
+
+#### `setup_odoo_complete.sh`
+Script principal alojado en GitHub que:
+1. Corrige permisos para contenedores Docker
+2. Crea `docker-compose.yml` dinámicamente
+3. Crea configuración de Nginx (HTTP inicial)
+4. Crea configuración de Odoo (`odoo.conf`)
+5. Inicia servicios (PostgreSQL, Odoo, Nginx)
+6. Obtiene certificado SSL de Let's Encrypt
+7. Reconfigura Nginx para HTTPS
+8. Inicia servicio certbot para renovación automática
+
+---
+
+## 🔧 Requisitos Previos
+
+### 1. Herramientas Necesarias
+
+| Herramienta | Versión Mínima | Instalación |
+|-------------|----------------|-------------|
+| **AWS CLI** | 2.x | `brew install awscli` (macOS) |
+| **Terraform** | 1.0+ | `brew install terraform` (macOS) |
+| **SSH Client** | Cualquiera | Incluido en sistemas Unix |
+| **Git** | 2.x | `brew install git` (macOS) |
+
+### 2. Cuentas y Credenciales
+
+- **Cuenta de AWS** con permisos para:
+  - EC2 (create, describe, terminate instances)
+  - EFS (describe file systems)
+  - VPC (describe VPCs, subnets, security groups)
+  - Elastic IP (associate, describe addresses)
+
+- **AWS CLI configurado** con credenciales válidas:
+  ```bash
+  aws configure
+  # AWS Access Key ID: [tu_access_key]
+  # AWS Secret Access Key: [tu_secret_key]
+  # Default region: eu-west-1
+  # Default output format: json
+  ```
+
+### 3. Recursos AWS Existentes
+
+Este proyecto **reutiliza recursos existentes**:
+
+| Recurso | ID | Región | Notas |
+|---------|-----|--------|-------|
+| **VPC** | vpc-92d074f6 | eu-west-1 | VPC WEBS existente |
+| **Subnet** | subnet-c362e2a7 | eu-west-1b | Subnet pública |
+| **EFS** | fs-ec7152d9 | eu-west-1 | Almacenamiento persistente |
+| **Elastic IP** | eipalloc-0184418cc26d4e66f | eu-west-1 | IP: 54.228.16.152 |
+| **Key Pair** | ERP | eu-west-1 | Par de claves SSH |
+
+**IMPORTANTE**: Estos recursos NO se crean ni destruyen por Terraform. Solo se **referencian y utilizan**.
+
+### 4. Archivo PEM de SSH
+
+- Archivo: `/Users/emiloalvarez/Work/PEMFiles/ERP.pem`
+- Permisos: `chmod 400 ERP.pem`
+- Uso: Conexión SSH a la instancia EC2
+
+---
+
+## ⚙️ Configuración Inicial
+
+### Paso 1: Clonar el Repositorio
+
+```bash
+git clone https://github.com/leulit/helipistas-erp-odoo-17-server-scripts.git
+cd helipistas-erp-odoo-17-server-scripts/terraform
+```
+
+### Paso 2: Crear Archivo de Configuración
+
+Copia el archivo de ejemplo y edítalo:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+nano terraform.tfvars
+```
+
+### Paso 3: Configurar `terraform.tfvars`
+
+```hcl
+# Configuración AWS
+aws_region = "eu-west-1"
+resource_prefix = "HELIPISTAS-ODOO-17"
+
+# Tipo de instancia
+instance_type = "t3.medium"  # 2 vCPU, 4GB RAM
+
+# Tamaño del disco raíz
+root_volume_size = 30  # GB
+
+# Key Pair SSH (sin extensión .pem)
+key_pair_name = "ERP"
+
+# Contraseñas (CAMBIAR POR VALORES SEGUROS)
+postgres_password = "TU_PASSWORD_POSTGRESQL_SEGURO"
+odoo_master_password = "TU_PASSWORD_ODOO_MASTER_SEGURO"
+
+# Recursos existentes (NO CAMBIAR)
+existing_elastic_ip_id = "eipalloc-0184418cc26d4e66f"
+existing_efs_id = "fs-ec7152d9"
+
+# Dominio para SSL
+domain_name = "erp17.helipistas.com"
+```
+
+⚠️ **CRÍTICO**: El archivo `terraform.tfvars` contiene contraseñas sensibles y está en `.gitignore`. **NUNCA** lo subas a Git.
+
+### Paso 4: Generar Contraseñas Seguras
+
+```bash
+# Generar contraseña aleatoria de 32 caracteres
+openssl rand -base64 32
+
+# O usar un generador online (pero mejor local por seguridad)
+```
+
+### Paso 5: Configurar DNS
+
+El dominio `erp17.helipistas.com` debe apuntar a la Elastic IP:
+
+```
+Tipo: A
+Nombre: erp17.helipistas.com
+Valor: 54.228.16.152
+TTL: 300
+```
+
+---
+
+## 🚀 Despliegue de Infraestructura
+
+### Opción 1: Despliegue Completo (Recomendado)
+
+Este comando **destruye** la infraestructura existente (si existe) y crea una nueva desde cero:
+
+```bash
+cd terraform
+terraform init
+terraform destroy -auto-approve && terraform apply -auto-approve
+```
+
+**Duración**: 10-12 minutos
+- Terraform apply: 2-3 minutos
+- Setup automático: 8-9 minutos
+
+### Opción 2: Solo Crear (Si no existe infraestructura)
+
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+### Opción 3: Solo Destruir
+
+```bash
+cd terraform
+terraform destroy
+```
+
+⚠️ **NOTA**: Destruir la infraestructura NO elimina:
+- EFS (los datos persisten)
+- Elastic IP
+- VPC y subnet
+- Key Pair
+
+---
+
+## 🔄 Flujo de Deployment Automático
+
+Cuando ejecutas `terraform apply`, este es el flujo completo:
+
+### 1️⃣ **Terraform Crea la Instancia EC2** (2-3 min)
+
+```
+Terraform aplica main.tf:
+├── Consulta VPC, subnet, AMI existentes
+├── Crea Security Group
+├── Lanza instancia EC2 (Amazon Linux 2, t3.medium)
+├── Asocia Elastic IP
+└── Inyecta user_data_simple.sh
+```
+
+### 2️⃣ **user_data_simple.sh se Ejecuta** (3-4 min)
+
+```
+Script de inicialización EC2:
+├── Actualiza sistema (yum update)
+├── Instala Docker, AWS CLI, NFS utils
+├── Inicia Docker
+├── Instala Docker Compose
+├── Monta EFS en /efs
+│   └── mount -t nfs4 fs-ec7152d9.efs.eu-west-1.amazonaws.com:/ /efs
+├── Crea estructura de directorios
+│   └── /efs/HELIPISTAS-ODOO-17/{postgres,odoo,nginx,certbot}
+└── Descarga y ejecuta setup_odoo_complete.sh desde GitHub
+```
+
+### 3️⃣ **setup_odoo_complete.sh Configura Todo** (5-6 min)
+
+```
+Script principal de configuración:
+├── 1. Corrige permisos de directorios (chown 101:101, 999:999)
+├── 2. Crea docker-compose.yml dinámicamente
+│   ├── PostgreSQL 15 (puerto 5432)
+│   ├── Odoo 17 (puerto 8069)
+│   ├── Nginx (puertos 80, 443)
+│   └── Certbot (renovación SSL)
+├── 3. Crea configuración de Nginx (HTTP inicial)
+│   └── nginx/conf/default.conf (proxy a Odoo, soporte ACME challenge)
+├── 4. Crea configuración de Odoo
+│   └── odoo/conf/odoo.conf (workers, proxy_mode, paths)
+├── 5. Inicia servicios básicos
+│   ├── docker-compose up -d postgresOdoo16
+│   ├── docker-compose up -d helipistas_odoo
+│   └── docker-compose up -d nginx
+│   └── Espera 45 segundos para que servicios estén listos
+├── 6. Obtiene certificado Let's Encrypt
+│   └── docker run certbot/certbot certonly --webroot \
+│       --force-renewal --non-interactive -d erp17.helipistas.com
+├── 7. Reconfigura Nginx para HTTPS
+│   ├── Actualiza nginx/conf/default.conf
+│   ├── HTTP → redirige a HTTPS
+│   └── HTTPS → proxy a Odoo con SSL
+├── 8. Reinicia Nginx con configuración SSL
+│   └── docker-compose restart nginx
+└── 9. Inicia servicio certbot para auto-renovación
+    └── docker-compose up -d certbot
+```
+
+### 4️⃣ **Verificación Automática**
+
+```
+Checks de salud:
+├── PostgreSQL escuchando en 5432 ✓
+├── Odoo respondiendo en 8069 ✓
+├── Nginx proxy en 80/443 ✓
+├── Certificado SSL válido ✓
+└── DNS resolviendo correctamente ✓
+```
+
+### 5️⃣ **Sistema Listo** 🎉
+
+```
+URLs disponibles:
+├── HTTP:  http://erp17.helipistas.com (→ redirige a HTTPS)
+├── HTTPS: https://erp17.helipistas.com (acceso principal)
+└── Direct: http://54.228.16.152:8069 (Odoo directo, solo desarrollo)
+```
+
+---
+
+## 🛠️ Gestión y Mantenimiento
+
+### Conectarse a la Instancia
+
+```bash
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+```
+
+### Comandos de Docker Compose
+
+Todos los comandos se ejecutan desde `/efs/HELIPISTAS-ODOO-17`:
+
+```bash
+cd /efs/HELIPISTAS-ODOO-17
+
+# Ver estado de contenedores
+docker-compose ps
+
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Ver logs de un servicio específico
+docker-compose logs -f helipistas_odoo
+docker-compose logs -f postgresOdoo16
+docker-compose logs -f nginx
+
+# Reiniciar un servicio
+docker-compose restart helipistas_odoo
+
+# Reiniciar todos los servicios
+docker-compose restart
+
+# Parar todos los servicios
+docker-compose down
+
+# Iniciar todos los servicios
+docker-compose up -d
+
+# Ver recursos consumidos
+docker stats
+```
+
+### Verificar Certificado SSL
+
+```bash
+# Ver detalles del certificado
+sudo docker run --rm \
+  -v /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt \
+  certbot/certbot certificates
+
+# Renovar certificado manualmente
+sudo docker run --rm \
+  -v /efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot \
+  -v /efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt \
+  certbot/certbot renew --force-renewal --non-interactive
+
+# Después de renovar, reiniciar Nginx
+cd /efs/HELIPISTAS-ODOO-17
+docker-compose restart nginx
+```
+
+### Monitorear Logs del Sistema
+
+```bash
+# Logs de cloud-init (setup inicial)
+sudo tail -f /var/log/cloud-init-output.log
+
+# Logs del setup completo
+sudo tail -f /var/log/odoo-setup-complete.log
+
+# Logs del sistema
+sudo journalctl -f
+```
+
+### Verificar Montaje de EFS
+
+```bash
+# Ver punto de montaje
+df -h | grep efs
+
+# Ver detalles del montaje
+mount | grep efs
+
+# Verificar contenido
+ls -la /efs/HELIPISTAS-ODOO-17/
+```
+
+---
+
+## 💾 Arquitectura de Datos
+
+### Estructura en EFS
+
+```
+/efs/HELIPISTAS-ODOO-17/
+│
+├── postgres/                          # 🗄️ Base de datos PostgreSQL
+│   └── pgdata/                       # Datos de la base de datos
+│       ├── base/                     # Tablas y datos
+│       ├── global/                   # Configuración global
+│       ├── pg_wal/                   # Write-Ahead Logs
+│       └── postgresql.conf           # Configuración PostgreSQL
+│
+├── odoo/                             # 🎯 Aplicación Odoo
+│   ├── conf/                         # Configuración
+│   │   └── odoo.conf                # Archivo de configuración principal
+│   ├── addons/                       # Módulos personalizados
+│   ├── filestore/                    # Archivos subidos por usuarios
+│   │   └── [database_name]/         # Un directorio por base de datos
+│   └── sessiones/                    # Sesiones de usuario
+│
+├── nginx/                            # 🌐 Proxy reverso
+│   ├── conf/                         # Configuración
+│   │   └── default.conf             # Virtual host
+│   └── ssl/                          # Certificados SSL personalizados
+│
+└── certbot/                          # 🔒 Let's Encrypt
+    ├── conf/                         # Configuración y certificados
+    │   ├── live/                     # Certificados activos
+    │   │   └── erp17.helipistas.com/
+    │   │       ├── fullchain.pem    # Certificado + cadena
+    │   │       ├── privkey.pem      # Clave privada
+    │   │       └── cert.pem         # Certificado
+    │   ├── archive/                  # Archivo de certificados antiguos
+    │   └── renewal/                  # Configuración de renovación
+    └── www/                          # Webroot para validación ACME
+        └── .well-known/
+            └── acme-challenge/
+```
+
+### Persistencia de Datos
+
+| Tipo de Dato | Ubicación | Persistencia | Backup |
+|--------------|-----------|--------------|--------|
+| **Base de datos PostgreSQL** | `/efs/.../postgres/pgdata` | ✅ Persiste en EFS | Automático por AWS EFS |
+| **Archivos de Odoo** | `/efs/.../odoo/filestore` | ✅ Persiste en EFS | Automático por AWS EFS |
+| **Configuración Odoo** | `/efs/.../odoo/conf` | ✅ Persiste en EFS | Automático por AWS EFS |
+| **Módulos custom** | `/efs/.../odoo/addons` | ✅ Persiste en EFS | Automático por AWS EFS |
+| **Certificados SSL** | `/efs/.../certbot/conf` | ✅ Persiste en EFS | Automático por AWS EFS |
+| **Logs de contenedores** | Dentro de contenedores | ❌ Efímero | Ver con `docker logs` |
+
+### Ventajas de la Arquitectura
+
+1. **Datos Sobreviven a Recreación de Instancias**: Si destruyes y recreas la EC2, todos los datos permanecen en EFS
+2. **Escalabilidad Horizontal**: Múltiples instancias EC2 pueden montar el mismo EFS
+3. **Backups Automáticos**: AWS EFS tiene backups automáticos
+4. **Alta Disponibilidad**: EFS está replicado en múltiples zonas de disponibilidad
+
+---
+
+## 🔐 Seguridad y SSL
+
+### Security Group
+
+El Security Group `HELIPISTAS-ODOO-17-SG` permite:
+
+| Puerto | Protocolo | Origen | Propósito |
+|--------|-----------|--------|-----------|
+| 22 | TCP | 0.0.0.0/0 | SSH (administración) |
+| 80 | TCP | 0.0.0.0/0 | HTTP (redirige a HTTPS) |
+| 443 | TCP | 0.0.0.0/0 | HTTPS (acceso principal) |
+| 8069 | TCP | 0.0.0.0/0 | Odoo directo (opcional) |
+| 2049 | TCP | Security Group mismo | NFS para EFS |
+
+### Certificados SSL
+
+#### Obtención Automática
+
+Let's Encrypt emite certificados válidos automáticamente durante el deployment:
+
+```bash
+# El script ejecuta:
+docker run --rm certbot/certbot \
+  certonly --webroot --webroot-path=/var/www/certbot \
+  --email admin@helipistas.com \
+  --agree-tos --no-eff-email \
+  --force-renewal --non-interactive \
+  -d erp17.helipistas.com
+```
+
+#### Renovación Automática
+
+El contenedor `certbot` se ejecuta continuamente y renueva certificados cada 12 horas:
+
+```yaml
+certbot:
+  image: certbot/certbot
+  entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+```
+
+#### Verificar Certificado
+
+```bash
+# Ver información del certificado
+openssl s_client -connect erp17.helipistas.com:443 -servername erp17.helipistas.com < /dev/null 2>/dev/null | openssl x509 -noout -dates
+
+# Ver Subject Alternative Names
+openssl s_client -connect erp17.helipistas.com:443 -servername erp17.helipistas.com < /dev/null 2>/dev/null | openssl x509 -noout -text | grep -A1 "Subject Alternative Name"
+```
+
+### Contraseñas
+
+| Servicio | Variable | Uso |
+|----------|----------|-----|
+| PostgreSQL | `postgres_password` | Conexión de Odoo a la base de datos |
+| Odoo Master | `odoo_master_password` | Gestión de bases de datos en Odoo |
+
+**IMPORTANTE**: 
+- Estas contraseñas se pasan como parámetros desde Terraform
+- Se almacenan en `terraform.tfvars` (excluido de Git)
+- Se usan en docker-compose.yml y odoo.conf
+
+---
+
+## 🐛 Troubleshooting
+
+### Problema: Terraform falla al crear la instancia
+
+**Síntomas**:
+```
+Error: Error launching source instance: InvalidKeyPair.NotFound
+```
+
+**Solución**:
+Verificar que el Key Pair "ERP" existe en AWS:
+```bash
+aws ec2 describe-key-pairs --region eu-west-1 --key-names ERP
+```
+
+---
+
+### Problema: EFS no se monta
+
+**Síntomas**:
+```
+mount: mounting fs-ec7152d9.efs.eu-west-1.amazonaws.com:/ on /efs failed
+```
+
+**Solución**:
+1. Verificar que EFS existe y está disponible:
+```bash
+aws efs describe-file-systems --file-system-id fs-ec7152d9 --region eu-west-1
+```
+
+2. Verificar Security Group permite NFS (puerto 2049)
+3. Conectarse a la instancia y verificar logs:
+```bash
+sudo tail -f /var/log/cloud-init-output.log
+```
+
+---
+
+### Problema: Certificado SSL no se obtiene
+
+**Síntomas**:
+```
+Error: No se pudo obtener el certificado SSL
+```
+
+**Soluciones**:
+
+1. **Verificar DNS**:
+```bash
+nslookup erp17.helipistas.com
+# Debe resolver a 54.228.16.152
+```
+
+2. **Verificar que Nginx está corriendo**:
+```bash
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+docker-compose ps
+```
+
+3. **Verificar logs de certbot**:
+```bash
+docker logs helipistas_certbot
+```
+
+4. **Intentar obtener certificado manualmente**:
+```bash
+cd /efs/HELIPISTAS-ODOO-17
+docker run --rm --name certbot-manual \
+  -v "/efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot" \
+  -v "/efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt" \
+  certbot/certbot \
+  certonly --webroot --webroot-path=/var/www/certbot \
+  --email admin@helipistas.com --agree-tos --no-eff-email \
+  --force-renewal --non-interactive \
+  -d erp17.helipistas.com
+```
+
+---
+
+### Problema: Odoo no arranca
+
+**Síntomas**:
+Container `helipistas_odoo` en estado `Restarting` o `Exited`
+
+**Solución**:
+
+1. **Ver logs de Odoo**:
+```bash
+docker logs helipistas_odoo
+```
+
+2. **Verificar PostgreSQL**:
+```bash
+docker logs helipistas_postgres
+docker exec helipistas_postgres psql -U odoo -c "\l"
+```
+
+3. **Verificar configuración**:
+```bash
+cat /efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf
+```
+
+4. **Verificar permisos**:
+```bash
+ls -la /efs/HELIPISTAS-ODOO-17/odoo/
+# Debe ser 101:101 (usuario odoo en el contenedor)
+```
+
+---
+
+### Problema: No puedo acceder a Odoo desde el navegador
+
+**Síntomas**:
+`https://erp17.helipistas.com` no carga
+
+**Diagnóstico paso a paso**:
+
+1. **Verificar DNS**:
+```bash
+nslookup erp17.helipistas.com
+# Debe resolver a 54.228.16.152
+```
+
+2. **Verificar que Elastic IP está asociada**:
+```bash
+aws ec2 describe-addresses --region eu-west-1 --allocation-ids eipalloc-0184418cc26d4e66f
+```
+
+3. **Verificar que Nginx está escuchando**:
+```bash
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+sudo netstat -tlnp | grep -E ':(80|443)'
+```
+
+4. **Verificar Security Group permite tráfico**:
+```bash
+aws ec2 describe-security-groups --region eu-west-1 --filters "Name=group-name,Values=HELIPISTAS-ODOO-17-SG"
+```
+
+5. **Ver logs de Nginx**:
+```bash
+docker logs helipistas_nginx
+```
+
+6. **Probar acceso directo a Odoo**:
+```bash
+curl http://54.228.16.152:8069
+```
+
+---
+
+### Problema: Deployment se queda colgado en certbot
+
+**Síntomas**:
+El script se detiene esperando input de certbot
+
+**Causa**:
+Certificado ya existe y certbot pide confirmación interactiva
+
+**Solución**:
+El script ya incluye los flags `--force-renewal` y `--non-interactive`, pero si falla:
+
+```bash
+# Conectarse a la instancia
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+
+# Matar proceso de certbot
+sudo pkill -f certbot
+
+# Ejecutar certbot con flags correctos
+cd /efs/HELIPISTAS-ODOO-17
+docker run --rm --name certbot-fix \
+  -v "/efs/HELIPISTAS-ODOO-17/certbot/www:/var/www/certbot" \
+  -v "/efs/HELIPISTAS-ODOO-17/certbot/conf:/etc/letsencrypt" \
+  certbot/certbot \
+  certonly --webroot --webroot-path=/var/www/certbot \
+  --email admin@helipistas.com --agree-tos --no-eff-email \
+  --force-renewal --non-interactive \
+  -d erp17.helipistas.com
+
+# Reiniciar Nginx
+docker-compose restart nginx
+```
+
+---
+
+## 📚 Referencias Técnicas
+
+### Comandos Útiles
+
+#### Terraform
+
+```bash
+# Inicializar Terraform (primera vez o después de cambios en providers)
+terraform init
+
+# Ver plan de cambios sin aplicar
+terraform plan
+
+# Aplicar cambios
+terraform apply
+
+# Aplicar sin confirmación
+terraform apply -auto-approve
+
+# Destruir infraestructura
+terraform destroy
+
+# Destruir sin confirmación
+terraform destroy -auto-approve
+
+# Ver outputs
+terraform output
+
+# Ver estado
+terraform show
+
+# Formatear archivos .tf
+terraform fmt
+
+# Validar configuración
+terraform validate
+```
+
+#### Docker Compose (en la instancia)
+
+```bash
+# Ubicación de trabajo
+cd /efs/HELIPISTAS-ODOO-17
+
+# Ver estado de servicios
+docker-compose ps
+
+# Ver logs (todos los servicios)
+docker-compose logs -f
+
+# Ver logs (servicio específico)
+docker-compose logs -f [helipistas_odoo|postgresOdoo16|nginx|certbot]
+
+# Reiniciar un servicio
+docker-compose restart [nombre_servicio]
+
+# Reiniciar todos los servicios
+docker-compose restart
+
+# Parar todos los servicios
+docker-compose down
+
+# Iniciar todos los servicios
+docker-compose up -d
+
+# Iniciar servicio específico
+docker-compose up -d [nombre_servicio]
+
+# Ver recursos (CPU, RAM)
+docker stats
+
+# Ejecutar comando en contenedor
+docker exec -it helipistas_odoo bash
+docker exec -it helipistas_postgres psql -U odoo
+
+# Ver redes
+docker network ls
+docker network inspect helipistas-odoo-17_helipistas_network
+```
+
+#### AWS CLI
+
+```bash
+# Listar instancias EC2
+aws ec2 describe-instances --region eu-west-1 --filters "Name=tag:Name,Values=HELIPISTAS-ODOO-17-INSTANCE"
+
+# Ver Elastic IPs
+aws ec2 describe-addresses --region eu-west-1
+
+# Ver EFS
+aws efs describe-file-systems --region eu-west-1
+
+# Ver Security Groups
+aws ec2 describe-security-groups --region eu-west-1 --filters "Name=group-name,Values=HELIPISTAS-ODOO-17-SG"
+```
+
+### Variables de Entorno en Docker Compose
+
+| Variable | Servicio | Valor | Descripción |
+|----------|----------|-------|-------------|
+| `POSTGRES_USER` | postgresOdoo16 | odoo | Usuario de PostgreSQL |
+| `POSTGRES_PASSWORD` | postgresOdoo16 | [desde terraform] | Contraseña de PostgreSQL |
+| `POSTGRES_DB` | postgresOdoo16 | postgres | Base de datos por defecto |
+| `PGDATA` | postgresOdoo16 | /var/lib/postgresql/data/pgdata | Directorio de datos |
+| `HOST` | helipistas_odoo | postgresOdoo16 | Host de PostgreSQL |
+| `USER` | helipistas_odoo | odoo | Usuario para conectar a PostgreSQL |
+| `PASSWORD` | helipistas_odoo | [desde terraform] | Contraseña para PostgreSQL |
+
+### Puertos Expuestos
+
+| Servicio | Puerto Interno | Puerto Host | Acceso |
+|----------|----------------|-------------|--------|
+| PostgreSQL | 5432 | 5432 | Solo red Docker |
+| Odoo | 8069 | 8069 | Público (opcional) |
+| Nginx HTTP | 80 | 80 | Público |
+| Nginx HTTPS | 443 | 443 | Público |
+
+### Configuración de Odoo
+
+El archivo `/efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf` contiene:
+
+```ini
+[options]
+# Database configuration
+db_host = postgresOdoo16
+db_port = 5432
+db_user = odoo
+db_password = [POSTGRES_PASSWORD]
+admin_passwd = [ODOO_MASTER_PASSWORD]
+
+# Workers configuration
+workers = 2
+max_cron_threads = 1
+
+# File paths
+addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+data_dir = /var/lib/odoo
+
+# Logging
+log_level = info
+log_handler = :INFO
+
+# Security
+list_db = True
+dbfilter = ^.*$
+
+# Performance
+limit_memory_hard = 1677721600
+limit_memory_soft = 1342177280
+limit_request = 8192
+limit_time_cpu = 600
+limit_time_real = 1200
+
+# Proxy mode (for Nginx)
+proxy_mode = True
+
+# Session
+session_dir = /var/lib/odoo/sessions
+```
+
+### Configuración de Nginx (HTTPS)
+
+```nginx
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name erp17.helipistas.com;
+    
+    # Let's Encrypt validation
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    # Redirect all other traffic to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS configuration with Let's Encrypt
+server {
+    listen 443 ssl http2;
+    server_name erp17.helipistas.com;
+
+    # SSL certificates from Let's Encrypt
+    ssl_certificate /etc/letsencrypt/live/erp17.helipistas.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/erp17.helipistas.com/privkey.pem;
+
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # Proxy to Odoo
+    location / {
+        proxy_pass http://helipistas_odoo:8069;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+---
+
+## 🔄 Workflow de Evolución del Proyecto
+
+### Para Desarrolladores Nuevos
+
+1. **Clonar repositorio**:
+   ```bash
+   git clone https://github.com/leulit/helipistas-erp-odoo-17-server-scripts.git
+   ```
+
+2. **Revisar documentación**:
+   - Leer este README completo
+   - Revisar archivos en `terraform/`
+   - Entender `setup_odoo_complete.sh`
+
+3. **Configurar entorno local**:
+   - Instalar AWS CLI y Terraform
+   - Configurar credenciales AWS
+   - Obtener archivo PEM
+
+4. **Crear ambiente de pruebas**:
+   - Copiar `terraform.tfvars.example` a `terraform.tfvars`
+   - Cambiar `resource_prefix` a algo único (ej: `PRUEBAS-NOMBRE`)
+   - NO usar los IDs de producción
+   - Ejecutar `terraform apply`
+
+5. **Probar cambios**:
+   - Hacer modificaciones en scripts
+   - Subir a branch en GitHub
+   - Modificar `user_data_simple.sh` para descargar desde tu branch
+   - Desplegar y probar
+
+6. **Mergear a main**:
+   - Una vez probado, hacer PR a `main`
+   - Los deployments de producción usan la branch `main`
+
+### Modificar el Deployment
+
+#### Cambiar Configuración de Odoo
+
+**Archivo**: `setup_odoo_complete.sh` (sección 5)
+
+```bash
+# Modificar la sección que crea odoo.conf
+cat > /efs/HELIPISTAS-ODOO-17/odoo/conf/odoo.conf << EOF
+[options]
+# TUS CAMBIOS AQUÍ
+workers = 4  # Ejemplo: aumentar workers
+EOF
+```
+
+Luego:
+1. Subir cambios a GitHub
+2. Ejecutar `terraform destroy && terraform apply`
+
+#### Cambiar Configuración de Nginx
+
+**Archivo**: `setup_odoo_complete.sh` (sección 6 y 9)
+
+Modificar las secciones que crean `nginx/conf/default.conf`
+
+#### Agregar Módulos Custom de Odoo
+
+```bash
+# Conectarse a la instancia
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+
+# Copiar módulos a EFS
+sudo cp -r /ruta/a/modulos/* /efs/HELIPISTAS-ODOO-17/odoo/addons/
+
+# Reiniciar Odoo para que detecte los módulos
+cd /efs/HELIPISTAS-ODOO-17
+docker-compose restart helipistas_odoo
+```
+
+#### Cambiar Versión de Odoo
+
+**Archivo**: `setup_odoo_complete.sh` (sección 2)
+
+```bash
+# Cambiar en docker-compose.yml
+helipistas_odoo:
+  image: odoo:18  # Cambiar versión
+```
+
+⚠️ **ADVERTENCIA**: Cambiar versiones puede requerir migraciones de base de datos.
+
+---
+
+## 📞 Soporte y Contacto
+
+### Repositorio GitHub
+- **URL**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts
+- **Issues**: Para reportar bugs o solicitar features
+
+### Recursos de Odoo
+- **Documentación oficial**: https://www.odoo.com/documentation/17.0/
+- **Foros**: https://www.odoo.com/forum
+
+### Recursos de AWS
+- **Terraform AWS Provider**: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+- **AWS EFS**: https://docs.aws.amazon.com/efs/
+- **AWS EC2**: https://docs.aws.amazon.com/ec2/
+
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la Licencia MIT. Ver archivo `LICENSE` para más detalles.
+
+---
+
+## 🎯 Resumen Ejecutivo para Nuevos Desarrolladores
+
+### ¿Qué hace este proyecto?
+
+Despliega automáticamente un servidor Odoo 17 completo en AWS con:
+- Infraestructura definida en Terraform
+- Datos persistentes en EFS
+- SSL automático con Let's Encrypt
+- Todo en contenedores Docker
+
+### ¿Cómo funciona?
+
+1. **Terraform** crea una instancia EC2 y configura red
+2. **user_data_simple.sh** prepara el sistema (Docker, EFS)
+3. **setup_odoo_complete.sh** configura servicios y SSL
+4. Resultado: Odoo funcionando en https://erp17.helipistas.com
+
+### ¿Cómo despliego?
+
+```bash
+cd terraform
+terraform init
+terraform destroy -auto-approve && terraform apply -auto-approve
+# Esperar 10-12 minutos
+# Listo: https://erp17.helipistas.com
+```
+
+### ¿Dónde están los datos?
+
+Todo en EFS (`fs-ec7152d9`):
+- Base de datos: `/efs/HELIPISTAS-ODOO-17/postgres/`
+- Archivos Odoo: `/efs/HELIPISTAS-ODOO-17/odoo/`
+- Certificados SSL: `/efs/HELIPISTAS-ODOO-17/certbot/`
+
+### ¿Cómo modifico algo?
+
+1. Editar `setup_odoo_complete.sh` en el repo
+2. Subir cambios a GitHub
+3. Ejecutar `terraform destroy && terraform apply`
+4. El script actualizado se descarga automáticamente
+
+### ¿Cómo accedo al servidor?
+
+```bash
+ssh -i /Users/emiloalvarez/Work/PEMFiles/ERP.pem ec2-user@54.228.16.152
+cd /efs/HELIPISTAS-ODOO-17
+docker-compose ps
+```
+
+---
+
+**¡Bienvenido al proyecto! Este README debería tener todo lo que necesitas para entender, desplegar y evolucionar la infraestructura de Helipistas Odoo 17.** 🚀
