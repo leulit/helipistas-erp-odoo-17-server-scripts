@@ -1,5 +1,11 @@
 # 🚀 Helipistas ERP - Odoo 17 en AWS
 
+> **📦 Tipos de Despliegue**: Este proyecto soporta dos tipos de despliegue:
+> - **On-Demand** (Producción): Disponibilidad 100%, IP fija → [`deployments/on-demand/`](deployments/on-demand/)
+> - **Spot Instances** (Desarrollo): Ahorro 70%, IP dinámica → [`deployments/spot/`](deployments/spot/)
+> 
+> Ver comparativa completa: [`deployments/README.md`](deployments/README.md)
+
 ## 📋 Índice
 
 1. [Descripción General](#-descripción-general)

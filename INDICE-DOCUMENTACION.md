@@ -348,11 +348,45 @@ Si encuentras algo que falta o está desactualizado:
 
 ---
 
+## 📦 Tipos de Despliegue
+
+El proyecto soporta **dos tipos de despliegue**:
+
+### 🟢 On-Demand (Producción)
+
+- **Carpeta**: [`deployments/on-demand/`](deployments/on-demand/)
+- **Documentación**: [`deployments/on-demand/README.md`](deployments/on-demand/README.md)
+- **Características**:
+  - Disponibilidad 100% garantizada
+  - IP fija (Elastic IP)
+  - Ideal para producción
+  - Costo: ~$30-40/mes
+
+### 🟡 Spot Instances (Desarrollo/Staging)
+
+- **Carpeta**: [`deployments/spot/`](deployments/spot/)
+- **Documentación**: [`deployments/spot/README.md`](deployments/spot/README.md) *(próximamente)*
+- **Características**:
+  - Ahorro 70% vs On-Demand
+  - IP dinámica
+  - Ideal para desarrollo
+  - Costo: ~$9-12/mes
+
+**Comparativa completa**: [`deployments/README.md`](deployments/README.md)
+
+---
+
 ## 🔗 Enlaces Útiles
 
 - **Repositorio GitHub**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts
 - **Issues**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts/issues
 - **Pull Requests**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts/pulls
+
+### Documentación de Deployments
+
+- **Índice de tipos de deployment**: [`deployments/README.md`](deployments/README.md)
+- **Deployment On-Demand**: [`deployments/on-demand/README.md`](deployments/on-demand/README.md)
+- **Deployment Spot**: [`deployments/spot/README.md`](deployments/spot/README.md) *(próximamente)*
 
 ---
 
