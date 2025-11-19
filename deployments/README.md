@@ -259,13 +259,13 @@ Ambos despliegues tienen:
 
 ### Documentación General del Proyecto
 
-En la raíz del repositorio (`../../`):
+En la carpeta `docs/` del repositorio:
 
-- **Índice maestro**: `INDICE-DOCUMENTACION.md`
-- **Guía rápida**: `GUIA-RAPIDA.md`
-- **Documentación completa**: `README-COMPLETO.md`
-- **Guía desarrolladores**: `GUIA-DESARROLLADORES.md`
-- **Decisiones arquitectura**: `DECISIONES-ARQUITECTURA.md`
+- **Índice maestro**: [`../docs/INDICE-DOCUMENTACION.md`](../docs/INDICE-DOCUMENTACION.md)
+- **Guía rápida**: [`../docs/GUIA-RAPIDA.md`](../docs/GUIA-RAPIDA.md)
+- **Documentación completa**: [`../docs/README-COMPLETO.md`](../docs/README-COMPLETO.md)
+- **Guía desarrolladores**: [`../docs/GUIA-DESARROLLADORES.md`](../docs/GUIA-DESARROLLADORES.md)
+- **Decisiones arquitectura**: [`../docs/DECISIONES-ARQUITECTURA.md`](../docs/DECISIONES-ARQUITECTURA.md)
 
 ---
 
@@ -381,7 +381,7 @@ Mismo proceso inverso:
 
 Para más información:
 
-- **Documentación principal**: `../../INDICE-DOCUMENTACION.md`
+- **Documentación principal**: [`../docs/INDICE-DOCUMENTACION.md`](../docs/INDICE-DOCUMENTACION.md)
 - **Issues GitHub**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts/issues
 
 ---

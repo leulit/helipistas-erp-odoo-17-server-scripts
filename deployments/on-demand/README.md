@@ -266,11 +266,11 @@ tar -czf filestore_backup_$(date +%Y%m%d).tar.gz /efs/HELIPISTAS-ODOO-17/odoo/fi
 
 ### En el Repositorio Principal
 
-- **Documentación completa**: `../../README-COMPLETO.md`
-- **Guía rápida**: `../../GUIA-RAPIDA.md`
-- **Guía desarrolladores**: `../../GUIA-DESARROLLADORES.md`
-- **Decisiones arquitectura**: `../../DECISIONES-ARQUITECTURA.md`
-- **Índice documentación**: `../../INDICE-DOCUMENTACION.md`
+- **Documentación completa**: [`../../docs/README-COMPLETO.md`](../../docs/README-COMPLETO.md)
+- **Guía rápida**: [`../../docs/GUIA-RAPIDA.md`](../../docs/GUIA-RAPIDA.md)
+- **Guía desarrolladores**: [`../../docs/GUIA-DESARROLLADORES.md`](../../docs/GUIA-DESARROLLADORES.md)
+- **Decisiones arquitectura**: [`../../docs/DECISIONES-ARQUITECTURA.md`](../../docs/DECISIONES-ARQUITECTURA.md)
+- **Índice documentación**: [`../../docs/INDICE-DOCUMENTACION.md`](../../docs/INDICE-DOCUMENTACION.md)
 
 ### Archivos Clave en Esta Carpeta
 
@@ -381,8 +381,8 @@ terraform destroy
 
 Para más información, consulta:
 
-1. **Documentación principal**: `../../INDICE-DOCUMENTACION.md`
-2. **Guía rápida**: `../../GUIA-RAPIDA.md`
+1. **Documentación principal**: [`../../docs/INDICE-DOCUMENTACION.md`](../../docs/INDICE-DOCUMENTACION.md)
+2. **Guía rápida**: [`../../docs/GUIA-RAPIDA.md`](../../docs/GUIA-RAPIDA.md)
 3. **Issues GitHub**: https://github.com/leulit/helipistas-erp-odoo-17-server-scripts/issues
 
 ---
