@@ -1,0 +1,67 @@
+# ============================================
+# TERRAFORM.TFVARS - Ejemplo de configuración
+# ============================================
+# COPIA este archivo a terraform.tfvars y personaliza los valores
+# NUNCA hagas commit de terraform.tfvars (contiene secrets)
+# ============================================
+
+# -------------------- AWS --------------------
+aws_region  = "eu-west-1"
+environment = "development"
+
+# -------------------- NETWORK --------------------
+vpc_id    = "vpc-92d074f6"
+subnet_id = "subnet-c362e2a7"
+
+# Tu IP pública para SSH (obtener con: curl ifconfig.me)
+allowed_ssh_cidr = "0.0.0.0/0"  # ⚠️ CAMBIAR por tu IP (ej: "1.2.3.4/32")
+
+# -------------------- EC2 SPOT --------------------
+instance_type = "t3.medium"  # t3.small (más barato), t3.large (más potente)
+key_name      = "ERP"        # Nombre de tu llave SSH (sin .pem)
+
+# Precio máximo por hora (null = pagar hasta precio on-demand)
+spot_max_price = null  # null = siempre disponible, "0.05" = máximo $0.05/h
+
+# Fecha de expiración del Spot Request
+spot_valid_until = "2026-12-31T23:59:59Z"
+
+# -------------------- STORAGE --------------------
+root_volume_size = 20  # GB para sistema operativo
+
+# EFS existente (o crear uno nuevo)
+efs_id          = "fs-ec7152d9"
+efs_mount_point = "/efs/HELIPISTAS-ODOO-17-DEV"
+
+# EBS adicional (0 = no crear)
+ebs_volume_size  = 0       # GB (0 = solo usar EFS)
+ebs_volume_type  = "gp3"   # gp3, io1, st1
+ebs_mount_point  = "/mnt/ebs-data"
+ebs_skip_destroy = true    # Mantener datos al hacer terraform destroy
+
+# -------------------- APPLICATION --------------------
+domain_name = "dev.helipistas.com"
+
+# ID de zona Route 53 (obtener con: aws route53 list-hosted-zones)
+route53_zone_id = "Z0XXXXXXXXXX"  # ⚠️ CAMBIAR
+
+# Contraseña de PostgreSQL (NUNCA hacer commit)
+postgres_password = "CHANGE_ME_STRONG_PASSWORD_HERE"  # ⚠️ CAMBIAR
+
+# Repositorio de GitHub
+github_repo   = "leulit/helipistas-erp-odoo-17-server-scripts"
+github_branch = "main"
+
+# -------------------- ODOO --------------------
+odoo_admin_password = ""  # Vacío = generada automáticamente
+odoo_workers        = 2   # 0 = desarrollo, 2 = producción (t3.medium)
+
+# ============================================
+# NOTAS IMPORTANTES
+# ============================================
+# 1. Cambiar allowed_ssh_cidr por tu IP pública
+# 2. Cambiar route53_zone_id por tu zona de Route 53
+# 3. Cambiar postgres_password por una contraseña fuerte
+# 4. NO hacer commit de este archivo (está en .gitignore)
+# 5. Spot Request es PERSISTENTE: auto-recovery tras terminación
+# 6. EBS con skip_destroy=true mantiene datos al recrear
