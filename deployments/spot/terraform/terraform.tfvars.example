@@ -17,8 +17,22 @@ subnet_id = "subnet-c362e2a7"
 allowed_ssh_cidr = "0.0.0.0/0"  # ⚠️ CAMBIAR por tu IP (ej: "1.2.3.4/32")
 
 # -------------------- EC2 SPOT --------------------
-instance_type = "t3.medium"  # t3.small (más barato), t3.large (más potente)
-key_name      = "ERP"        # Nombre de tu llave SSH (sin .pem)
+# Usar Fleet (recomendado) o Spot Request simple
+use_fleet_instead_of_spot_request = true
+
+# Tipo principal (será sobrescrito si se usa Fleet)
+instance_type_primary = "t3.medium"
+
+# Lista de tipos alternativos (AWS elige el más barato/disponible)
+instance_types_alternatives = [
+  "t3.medium",
+  "t3a.medium",
+  "t2.medium",
+  "t3.small",
+  "t3a.small"
+]
+
+key_name = "ERP"  # Nombre de tu llave SSH (sin .pem)
 
 # Precio máximo por hora (null = pagar hasta precio on-demand)
 spot_max_price = null  # null = siempre disponible, "0.05" = máximo $0.05/h
@@ -40,11 +54,6 @@ ebs_mount_point  = "/mnt/ebs-data"
 ebs_skip_destroy = true    # Mantener datos al hacer terraform destroy
 
 # -------------------- APPLICATION --------------------
-domain_name = "dev.helipistas.com"
-
-# ID de zona Route 53 (obtener con: aws route53 list-hosted-zones)
-route53_zone_id = "Z0XXXXXXXXXX"  # ⚠️ CAMBIAR
-
 # Contraseña de PostgreSQL (NUNCA hacer commit)
 postgres_password = "CHANGE_ME_STRONG_PASSWORD_HERE"  # ⚠️ CAMBIAR
 
@@ -52,16 +61,13 @@ postgres_password = "CHANGE_ME_STRONG_PASSWORD_HERE"  # ⚠️ CAMBIAR
 github_repo   = "leulit/helipistas-erp-odoo-17-server-scripts"
 github_branch = "main"
 
-# -------------------- ODOO --------------------
-odoo_admin_password = ""  # Vacío = generada automáticamente
-odoo_workers        = 2   # 0 = desarrollo, 2 = producción (t3.medium)
-
 # ============================================
 # NOTAS IMPORTANTES
 # ============================================
 # 1. Cambiar allowed_ssh_cidr por tu IP pública
-# 2. Cambiar route53_zone_id por tu zona de Route 53
-# 3. Cambiar postgres_password por una contraseña fuerte
-# 4. NO hacer commit de este archivo (está en .gitignore)
-# 5. Spot Request es PERSISTENTE: auto-recovery tras terminación
-# 6. EBS con skip_destroy=true mantiene datos al recrear
+# 2. Cambiar postgres_password por una contraseña fuerte
+# 3. NO hacer commit de este archivo (está en .gitignore)
+# 4. Spot Request es PERSISTENTE: auto-recovery tras terminación
+# 5. EBS con skip_destroy=true mantiene datos al recrear
+# 6. Fleet usa lista de tipos de instancia para mayor disponibilidad
+# 7. Acceso a Odoo: http://<IP_PUBLICA>:8069 (sin SSL)

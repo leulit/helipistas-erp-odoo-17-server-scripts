@@ -38,11 +38,30 @@ variable "allowed_ssh_cidr" {
 
 # -------------------- EC2 SPOT --------------------
 
-variable "instance_type" {
-  description = "Tipo de instancia EC2"
+variable "use_fleet_instead_of_spot_request" {
+  description = "Usar EC2 Fleet en lugar de Spot Instance Request (recomendado para múltiples tipos)"
+  type        = bool
+  default     = true
+}
+
+variable "instance_type_primary" {
+  description = "Tipo de instancia EC2 principal"
   type        = string
   default     = "t3.medium"
-  # Alternativas: t3.small (más barato), t3.large (más potente)
+}
+
+variable "instance_types_alternatives" {
+  description = "Lista de tipos de instancia alternativos (AWS elige el más barato/disponible)"
+  type        = list(string)
+  default     = [
+    "t3.medium",   # 2 vCPU, 4GB RAM - ~$0.0416/h on-demand, ~$0.0125/h spot
+    "t3a.medium",  # 2 vCPU, 4GB RAM (AMD) - ~$0.0374/h on-demand, ~$0.0112/h spot
+    "t2.medium",   # 2 vCPU, 4GB RAM (generación anterior) - ~$0.0464/h on-demand
+    "t3.small",    # 2 vCPU, 2GB RAM - más barato si RAM suficiente
+    "t3a.small",   # 2 vCPU, 2GB RAM (AMD) - aún más barato
+  ]
+  # AWS intentará en orden y elegirá el más económico disponible
+  # Agregar más tipos aumenta probabilidad de conseguir Spot
 }
 
 variable "key_name" {
@@ -116,18 +135,6 @@ variable "ebs_skip_destroy" {
 
 # -------------------- APPLICATION --------------------
 
-variable "domain_name" {
-  description = "Dominio para acceder a Odoo"
-  type        = string
-  default     = "dev.helipistas.com"
-}
-
-variable "route53_zone_id" {
-  description = "ID de la zona de Route 53 para actualizar DNS"
-  type        = string
-  # Obtener con: aws route53 list-hosted-zones
-}
-
 variable "postgres_password" {
   description = "Contraseña para PostgreSQL"
   type        = string
@@ -145,21 +152,4 @@ variable "github_branch" {
   description = "Rama de GitHub para descargar scripts"
   type        = string
   default     = "main"
-}
-
-# -------------------- ODOO --------------------
-
-variable "odoo_admin_password" {
-  description = "Contraseña del admin de Odoo"
-  type        = string
-  sensitive   = true
-  default     = ""
-  # Si está vacía, se genera automáticamente
-}
-
-variable "odoo_workers" {
-  description = "Número de workers de Odoo (0 = modo desarrollo)"
-  type        = number
-  default     = 2
-  # 0 = desarrollo (auto-reload), 2 = producción (t3.medium)
 }

@@ -1,8 +1,8 @@
 # ============================================
 # DOCKER COMPOSE - Odoo 17 Spot Instance
 # ============================================
-# Template con variables de entorno
-# Los valores se leen del archivo .env
+# Solo PostgreSQL y Odoo
+# Sin Nginx, sin SSL, sin Certbot
 # ============================================
 
 version: '3.8'
@@ -53,14 +53,13 @@ services:
       - ${EFS_MOUNT_POINT}/odoo/addons:/mnt/extra-addons
       - ${EFS_MOUNT_POINT}/odoo/filestore:/var/lib/odoo/filestore
       - ${EFS_MOUNT_POINT}/odoo/sessions:/var/lib/odoo/sessions
-      - ${EFS_MOUNT_POINT}/odoo/conf:/etc/odoo
     
     networks:
       - odoo_network
     
-    # Puerto interno (no expuesto, solo via Nginx)
-    expose:
-      - "8069"
+    # Puerto expuesto directamente
+    ports:
+      - "8069:8069"
     
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8069/web/health || exit 1"]
@@ -69,61 +68,14 @@ services:
       retries: 3
       start_period: 60s
 
-  # ==================== NGINX ====================
-  nginx:
-    image: nginx:alpine
-    container_name: nginx_spot
-    restart: unless-stopped
-    
-    depends_on:
-      - odooApp
-    
-    ports:
-      - "80:80"
-      - "443:443"
-    
-    volumes:
-      # Configuración de Nginx
-      - ${EFS_MOUNT_POINT}/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${EFS_MOUNT_POINT}/nginx/conf/default.conf:/etc/nginx/conf.d/default.conf:ro
-      
-      # Certificados SSL
-      - ${EFS_MOUNT_POINT}/certbot/conf:/etc/letsencrypt:ro
-      - ${EFS_MOUNT_POINT}/certbot/www:/var/www/certbot:ro
-    
-    networks:
-      - odoo_network
-    
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ==================== CERTBOT ====================
-  certbot:
-    image: certbot/dns-route53
-    container_name: certbot_spot
-    
-    volumes:
-      - ${EFS_MOUNT_POINT}/certbot/conf:/etc/letsencrypt
-      - ${EFS_MOUNT_POINT}/certbot/www:/var/www/certbot
-    
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    
-    # Certbot necesita permisos de IAM para Route 53 DNS challenge
-    # La instancia EC2 tiene IAM role con permisos Route 53
-
 networks:
   odoo_network:
     driver: bridge
 
 # ============================================
-# NOTAS IMPORTANTES
+# NOTAS
 # ============================================
-# 1. Todas las rutas de volúmenes usan ${EFS_MOUNT_POINT}
-# 2. Los datos persisten en EFS entre recreaciones de instancia
-# 3. PostgreSQL usa healthcheck para sincronización
-# 4. Odoo solo es accesible via Nginx (puerto 8069 no expuesto)
-# 5. SSL se obtiene con DNS challenge (Route 53)
-# 6. Certbot renueva certificados automáticamente cada 12h
+# 1. Datos persisten en EFS entre recreaciones
+# 2. PostgreSQL con healthcheck para sincronización
+# 3. Odoo accesible en puerto 8069
+# 4. Sin SSL - acceso HTTP directo

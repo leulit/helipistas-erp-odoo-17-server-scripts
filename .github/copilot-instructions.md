@@ -1,5 +1,19 @@
 # Copilot Instructions - Helipistas Odoo 17 ERP
 
+
+## 🚫 **Lo que NO debe hacer el Agente (Exclusiones)**
+
+* Generar soluciones que violen los principios SOLID, DRY, comprometan el rendimiento, la robustez **o la usabilidad**.
+* Implementar funcionalidades especulativas ("por si acaso" - YAGNI).
+* Ignorar la estructura de directorios definida o las convenciones de nomenclatura.
+* Asumir una solución de gestión de estado o persistencia si no ha sido especificada previamente.
+* Producir código que no contemple el manejo de errores, la eficiencia en el procesamiento de datos geográficos **o que resulte en una experiencia de usuario deficiente.**
+* Hacer propuestas que supongan errores de compilación o ejecución.
+* Hacer propuestas que puedan provocar errores en tiempo de ejecución debido a referencias incorrectas.
+* Hacer propuestas que no sigan las mejores prácticas de desarrollo, incluyendo el uso adecuado de decoradores, herencia de modelos y vistas, y gestión de permisos.
+* Hacer propuestas que provoquen errores o pèrdidas de funcionalidad en los módulos/funcionalidades existentes.
+
+
 ## 📋 Contexto del Proyecto
 
 Este es un proyecto de **Infrastructure as Code (IaC)** para desplegar **Odoo 17 ERP** en **AWS** usando **Terraform**, con persistencia en **EFS**, **SSL automático** con Let's Encrypt, y arquitectura basada en **Docker Compose**.

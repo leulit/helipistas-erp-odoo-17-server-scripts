@@ -38,11 +38,9 @@ echo "=== 4. Ejecutando setup.sh con parámetros ==="
   "${efs_mount_point}" \
   "${ebs_device}" \
   "${ebs_mount_point}" \
-  "${domain_name}" \
   "${postgres_password}" \
   "${github_repo}" \
   "${github_branch}" \
-  "${route53_zone_id}" \
   >> /var/log/setup.log 2>&1
 
 # -------------------- COMPLETION --------------------

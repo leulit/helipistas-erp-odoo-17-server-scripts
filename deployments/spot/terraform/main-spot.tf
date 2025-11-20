@@ -178,27 +178,6 @@ resource "aws_iam_role_policy" "efs_access" {
   })
 }
 
-# Política para Route 53 (actualizar DNS)
-resource "aws_iam_role_policy" "route53_update" {
-  name = "route53-update-policy"
-  role = aws_iam_role.spot_instance_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "route53:ChangeResourceRecordSets",
-          "route53:GetHostedZone",
-          "route53:ListResourceRecordSets"
-        ]
-        Resource = "arn:aws:route53:::hostedzone/${var.route53_zone_id}"
-      }
-    ]
-  })
-}
-
 # Política para CloudWatch Logs (opcional)
 resource "aws_iam_role_policy" "cloudwatch_logs" {
   name = "cloudwatch-logs-policy"
@@ -234,10 +213,14 @@ resource "aws_iam_instance_profile" "spot_instance_profile" {
 }
 
 # ============================================
-# SPOT INSTANCE REQUEST - Servidor principal
+# SPOT INSTANCE REQUEST - Servidor principal  
 # ============================================
+# Opción simple: Solo un tipo de instancia
+# Para múltiples tipos usar Fleet (ver abajo)
 
 resource "aws_spot_instance_request" "odoo_spot" {
+  count = var.use_fleet_instead_of_spot_request ? 0 : 1
+
   # CRÍTICO: persistent = auto-recovery tras terminación
   spot_type                      = "persistent"
   instance_interruption_behavior = "terminate"
@@ -249,7 +232,7 @@ resource "aws_spot_instance_request" "odoo_spot" {
 
   # Configuración de instancia
   ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = var.instance_type
+  instance_type          = var.instance_type_primary
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.odoo_spot_sg.id]
   subnet_id              = var.subnet_id
@@ -265,15 +248,13 @@ resource "aws_spot_instance_request" "odoo_spot" {
 
   # User data: Bootstrap mínimo
   user_data = templatefile("${path.module}/user_data_spot.sh", {
-    efs_id           = var.efs_id
-    efs_mount_point  = var.efs_mount_point
-    ebs_device       = var.ebs_volume_size > 0 ? "/dev/xvdf" : ""
-    ebs_mount_point  = var.ebs_mount_point
-    domain_name      = var.domain_name
+    efs_id            = var.efs_id
+    efs_mount_point   = var.efs_mount_point
+    ebs_device        = var.ebs_volume_size > 0 ? "/dev/xvdf" : ""
+    ebs_mount_point   = var.ebs_mount_point
     postgres_password = var.postgres_password
-    github_repo      = var.github_repo
-    github_branch    = var.github_branch
-    route53_zone_id  = var.route53_zone_id
+    github_repo       = var.github_repo
+    github_branch     = var.github_branch
   })
 
   tags = {
@@ -285,12 +266,126 @@ resource "aws_spot_instance_request" "odoo_spot" {
   }
 }
 
-# Asociar EBS volume a la instancia (si existe)
+# ============================================
+# LAUNCH TEMPLATE - Con lista de instancias
+# ============================================
+
+resource "aws_launch_template" "odoo_spot" {
+  name_prefix   = "odoo-spot-"
+  image_id      = data.aws_ami.amazon_linux_2.id
+  key_name      = var.key_name
+  
+  iam_instance_profile {
+    name = aws_iam_instance_profile.spot_instance_profile.name
+  }
+
+  vpc_security_group_ids = [aws_security_group.odoo_spot_sg.id]
+
+  # User data
+  user_data = base64encode(templatefile("${path.module}/user_data_spot.sh", {
+    efs_id            = var.efs_id
+    efs_mount_point   = var.efs_mount_point
+    ebs_device        = var.ebs_volume_size > 0 ? "/dev/xvdf" : ""
+    ebs_mount_point   = var.ebs_mount_point
+    postgres_password = var.postgres_password
+    github_repo       = var.github_repo
+    github_branch     = var.github_branch
+  }))
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = var.root_volume_size
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
+
+  # Opciones de mercado Spot con alternativas
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      instance_interruption_behavior = "terminate"
+      spot_instance_type             = "persistent"
+      max_price                      = var.spot_max_price
+    }
+  }
+
+  # Metadatos opcionales
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional"
+    http_put_response_hop_limit = 1
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "odoo-spot-instance"
+      Environment = var.environment
+      Project     = "Helipistas-Odoo-17"
+    }
+  }
+}
+
+# ============================================
+# FLEET REQUEST - Con lista de tipos de instancia
+# ============================================
+# Este enfoque permite especificar múltiples tipos
+
+resource "aws_ec2_fleet" "odoo_spot_fleet" {
+  count = var.use_fleet_instead_of_spot_request ? 1 : 0
+
+  # Lanzar solo 1 instancia
+  target_capacity_specification {
+    default_target_capacity_type = "spot"
+    total_target_capacity        = 1
+  }
+
+  # Reemplazar automáticamente si se termina
+  type = "maintain"
+
+  # Terminar al eliminar el fleet
+  terminate_instances                 = true
+  terminate_instances_with_expiration = false
+
+  # Configuración de Spot
+  spot_options {
+    allocation_strategy            = "price-capacity-optimized"
+    instance_interruption_behavior = "terminate"
+  }
+
+  # Lista de configuraciones de lanzamiento con tipos alternativos
+  dynamic "launch_template_config" {
+    for_each = var.instance_types_alternatives
+    content {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.odoo_spot.id
+        version            = "$Latest"
+      }
+
+      # Sobrescribir tipo de instancia
+      override {
+        instance_type = launch_template_config.value
+        subnet_id     = var.subnet_id
+      }
+    }
+  }
+
+  tags = {
+    Name        = "odoo-spot-fleet"
+    Environment = var.environment
+    Project     = "Helipistas-Odoo-17"
+  }
+}
+
+# Asociar EBS volume a la instancia (si existe y se usa Spot Request)
 resource "aws_volume_attachment" "spot_data_attachment" {
-  count       = var.ebs_volume_size > 0 ? 1 : 0
+  count       = var.ebs_volume_size > 0 && !var.use_fleet_instead_of_spot_request ? 1 : 0
   device_name = "/dev/xvdf"
   volume_id   = aws_ebs_volume.spot_data[0].id
-  instance_id = aws_spot_instance_request.odoo_spot.spot_instance_id
+  instance_id = aws_spot_instance_request.odoo_spot[0].spot_instance_id
 
   # No forzar detach en destroy (mantener datos)
   force_detach = false
@@ -301,29 +396,24 @@ resource "aws_volume_attachment" "spot_data_attachment" {
 # OUTPUTS - Información de la instancia
 # ============================================
 
+output "deployment_type" {
+  description = "Tipo de deployment usado"
+  value       = var.use_fleet_instead_of_spot_request ? "EC2 Fleet" : "Spot Instance Request"
+}
+
 output "spot_request_id" {
-  description = "ID del Spot Request (persistente)"
-  value       = aws_spot_instance_request.odoo_spot.id
+  description = "ID del Spot Request (si se usa)"
+  value       = var.use_fleet_instead_of_spot_request ? "N/A (usando Fleet)" : aws_spot_instance_request.odoo_spot[0].id
 }
 
-output "spot_instance_id" {
-  description = "ID de la instancia EC2 actual"
-  value       = aws_spot_instance_request.odoo_spot.spot_instance_id
+output "fleet_id" {
+  description = "ID del Fleet (si se usa)"
+  value       = var.use_fleet_instead_of_spot_request ? aws_ec2_fleet.odoo_spot_fleet[0].id : "N/A (usando Spot Request)"
 }
 
-output "instance_public_ip" {
-  description = "IP pública dinámica de la instancia"
-  value       = aws_spot_instance_request.odoo_spot.public_ip
-}
-
-output "instance_public_dns" {
-  description = "DNS público de la instancia"
-  value       = aws_spot_instance_request.odoo_spot.public_dns
-}
-
-output "domain_name" {
-  description = "Dominio configurado"
-  value       = var.domain_name
+output "instance_types" {
+  description = "Tipos de instancia configurados"
+  value       = var.instance_types_alternatives
 }
 
 output "security_group_id" {
@@ -341,7 +431,16 @@ output "ebs_volume_id" {
   value       = var.ebs_volume_size > 0 ? aws_ebs_volume.spot_data[0].id : "N/A"
 }
 
-output "ssh_command" {
-  description = "Comando SSH para conectar a la instancia"
-  value       = "ssh -i ${var.key_name}.pem ec2-user@${aws_spot_instance_request.odoo_spot.public_ip}"
+output "access_info" {
+  description = "Información de acceso"
+  value       = <<-EOT
+    1. Obtener IP pública:
+       aws ec2 describe-instances --filters "Name=tag:Name,Values=odoo-spot-instance" --query 'Reservations[0].Instances[0].PublicIpAddress'
+    
+    2. SSH:
+       ssh -i ${var.key_name}.pem ec2-user@<IP_PUBLICA>
+    
+    3. Odoo:
+       http://<IP_PUBLICA>:8069
+  EOT
 }
